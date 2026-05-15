@@ -1,0 +1,16 @@
+{
+  "name": "smart-event-report-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Smart Institutional Event Report Management System",
+  "workspaces": [
+    "backend",
+    "admin"
+  ],
+  "scripts": {
+    "backend:dev": "npm run dev --workspace=backend",
+    "admin:dev": "npm run dev --workspace=admin",
+    "backend:build": "npm run build --workspace=backend",
+    "admin:build": "npm run build --workspace=admin"
+  }
+}

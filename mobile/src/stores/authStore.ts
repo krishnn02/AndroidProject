@@ -1,0 +1,86 @@
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { authApi } from '../services';
+
+interface User {
+  _id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  department: string;
+  college?: string;
+  role: 'ADMIN' | 'USER';
+}
+
+interface AuthState {
+  user: User | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  error: string | null;
+
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
+  loadUser: () => Promise<void>;
+  clearError: () => void;
+}
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+      error: null,
+
+      login: async (email: string, password: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { data } = await authApi.login(email, password);
+          const { user, tokens } = data.data;
+
+          await SecureStore.setItemAsync('accessToken', tokens.accessToken);
+          await SecureStore.setItemAsync('refreshToken', tokens.refreshToken);
+
+          set({ user, isAuthenticated: true, isLoading: false });
+        } catch (error: any) {
+          const message = error.response?.data?.message || 'Login failed';
+          set({ error: message, isLoading: false });
+          throw new Error(message);
+        }
+      },
+
+      logout: async () => {
+        try {
+          await authApi.logout();
+        } catch {}
+        await SecureStore.deleteItemAsync('accessToken');
+        await SecureStore.deleteItemAsync('refreshToken');
+        set({ user: null, isAuthenticated: false });
+      },
+
+      loadUser: async () => {
+        try {
+          const token = await SecureStore.getItemAsync('accessToken');
+          if (!token) return;
+
+          set({ isLoading: true });
+          const { data } = await authApi.getProfile();
+          set({ user: data.data.user, isAuthenticated: true, isLoading: false });
+        } catch {
+          await SecureStore.deleteItemAsync('accessToken');
+          await SecureStore.deleteItemAsync('refreshToken');
+          set({ user: null, isAuthenticated: false, isLoading: false });
+        }
+      },
+
+      clearError: () => set({ error: null }),
+    }),
+    {
+      name: 'auth-storage',
+      storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ user: state.user, isAuthenticated: state.isAuthenticated }),
+    }
+  )
+);
