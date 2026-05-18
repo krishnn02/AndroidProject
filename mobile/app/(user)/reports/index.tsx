@@ -38,7 +38,7 @@ export default function ReportsScreen() {
               <View style={[styles.badge, { backgroundColor: getStatusColor(item.status) + '20' }]}>
                 <Text style={[styles.badgeText, { color: getStatusColor(item.status) }]}>{item.status}</Text>
               </View>
-              <Text style={styles.dateText}>{new Date(item.createdAt).toLocaleDateString()}</Text>
+              <Text style={styles.dateText}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : 'Unknown date'}</Text>
             </View>
             <Text style={styles.name}>{item.event?.name || 'Unknown Event'}</Text>
             <View style={styles.detailsRow}>

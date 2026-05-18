@@ -3,9 +3,9 @@ import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from 're
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Linking from 'expo-linking';
-import { useReportStore } from '../../../src/stores/reportStore';
-import { Card, Button } from '../../../src/components/ui';
-import { colors, spacing, fontSize, fontWeight } from '../../../src/theme';
+import { useReportStore } from '../../../../src/stores/reportStore';
+import { Card, Button } from '../../../../src/components/ui';
+import { colors, spacing, fontSize, fontWeight } from '../../../../src/theme';
 
 export default function ReportBuilderScreen() {
   const { id } = useLocalSearchParams();
@@ -63,17 +63,17 @@ export default function ReportBuilderScreen() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Builder Tools</Text>
         
-        <Card style={styles.toolCard} onPress={() => {/* TODO: Navigate to Front Page Editor */}}>
+        <Card style={styles.toolCard} onPress={() => router.push(`/(user)/reports/${id}/front-page`)}>
           <Ionicons name="image-outline" size={24} color={colors.primary} />
           <Text style={styles.toolText}>Front Page & Logos</Text>
         </Card>
 
-        <Card style={styles.toolCard} onPress={() => {/* TODO: Navigate to Section Manager */}}>
+        <Card style={styles.toolCard} onPress={() => router.push(`/(user)/reports/${id}/sections`)}>
           <Ionicons name="list-outline" size={24} color={colors.primary} />
           <Text style={styles.toolText}>Manage Sections ({currentReport.sections?.length || 0})</Text>
         </Card>
 
-        <Card style={styles.toolCard} onPress={() => {/* TODO: Navigate to Budget Editor */}}>
+        <Card style={styles.toolCard} onPress={() => router.push(`/(user)/reports/${id}/budget`)}>
           <Ionicons name="cash-outline" size={24} color={colors.primary} />
           <Text style={styles.toolText}>Budget Summary ({currentReport.budgets?.length || 0})</Text>
         </Card>

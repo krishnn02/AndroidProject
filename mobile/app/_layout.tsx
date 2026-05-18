@@ -21,13 +21,13 @@ export default function RootLayout() {
 
     if (!isAuthenticated && !inAuthGroup) {
       // Redirect to login if not authenticated
-      router.replace('/(auth)/login');
+      setTimeout(() => router.replace('/(auth)/login'), 0);
     } else if (isAuthenticated && inAuthGroup) {
       // Redirect away from login if authenticated
       if (user?.role === 'ADMIN') {
-        router.replace('/(admin)/dashboard');
+        setTimeout(() => router.replace('/(admin)/dashboard'), 0);
       } else {
-        router.replace('/(user)/dashboard');
+        setTimeout(() => router.replace('/(user)/dashboard'), 0);
       }
     }
   }, [isAuthenticated, isLoading, segments, user]);

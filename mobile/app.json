@@ -26,8 +26,9 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "scheme": "mobile",
     "plugins": [
-      "expo-router",
+      ["expo-router", { "root": "./app" }],
       "expo-secure-store"
     ]
   }

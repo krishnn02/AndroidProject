@@ -30,6 +30,8 @@ interface Report {
   sections?: ReportSection[];
   budgets?: Budget[];
   pdfUrl?: string;
+  rejectionNote?: string;
+  createdAt?: string;
 }
 
 interface ReportState {

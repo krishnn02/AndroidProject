@@ -2,9 +2,9 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useEventStore } from '../../src/stores/eventStore';
-import { Card } from '../../src/components/ui';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../src/theme';
+import { useEventStore } from '../../../src/stores/eventStore';
+import { Card } from '../../../src/components/ui';
+import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../../src/theme';
 
 export default function EventsScreen() {
   const { events, fetchEvents, isLoading } = useEventStore();
