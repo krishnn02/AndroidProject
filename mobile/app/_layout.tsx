@@ -18,14 +18,15 @@ export default function RootLayout() {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
+    const isRoot = segments.length === 0;
 
     if (!isAuthenticated && !inAuthGroup) {
       // Redirect to login if not authenticated
       setTimeout(() => router.replace('/(auth)/login'), 0);
-    } else if (isAuthenticated && inAuthGroup) {
-      // Redirect away from login if authenticated
+    } else if (isAuthenticated && (inAuthGroup || isRoot)) {
+      // Redirect to dashboard if authenticated and on login or root
       if (user?.role === 'ADMIN') {
-        setTimeout(() => router.replace('/(admin)/dashboard'), 0);
+        setTimeout(() => router.replace('/(admin)'), 0);
       } else {
         setTimeout(() => router.replace('/(user)/dashboard'), 0);
       }

@@ -23,19 +23,28 @@ export default function UserLayout() {
         }}
       />
       <Tabs.Screen
-        name="events"
+        name="events/index"
         options={{
           title: 'My Events',
+          href: '/(user)/events',
           tabBarIcon: ({ color, size }) => <Ionicons name="calendar-outline" size={size} color={color} />,
         }}
       />
       <Tabs.Screen
-        name="reports"
+        name="reports/index"
         options={{
           title: 'Reports',
+          href: '/(user)/reports',
           tabBarIcon: ({ color, size }) => <Ionicons name="document-text-outline" size={size} color={color} />,
         }}
       />
+
+      {/* Hide nested screens from the tab bar */}
+      <Tabs.Screen name="events/[id]" options={{ href: null }} />
+      <Tabs.Screen name="reports/[id]/index" options={{ href: null }} />
+      <Tabs.Screen name="reports/[id]/budget" options={{ href: null }} />
+      <Tabs.Screen name="reports/[id]/front-page" options={{ href: null }} />
+      <Tabs.Screen name="reports/[id]/sections" options={{ href: null }} />
     </Tabs>
   );
 }
