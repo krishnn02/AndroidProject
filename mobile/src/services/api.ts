@@ -1,7 +1,19 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api';
+const getBaseUrl = () => {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  // Extract host IP dynamically from Expo's bundler connection
+  const hostUri = Constants.expoConfig?.hostUri;
+  const host = hostUri ? hostUri.split(':')[0] : 'localhost';
+  return `http://${host}:5000/api`;
+};
+
+const API_BASE_URL = getBaseUrl();
+console.log('[API] Resolved Base URL:', API_BASE_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
