@@ -1,50 +1,37 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import { Layout } from './components/layout/Layout';
 import { Dashboard } from './pages/Dashboard';
+import { Login } from './pages/Login';
+import { UsersPage } from './pages/Users';
+import { EventsPage } from './pages/Events';
+import { ReportsPage } from './pages/Reports';
+import { useAuthStore } from './stores/authStore';
 
-function Users() {
-  return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Users</h1>
-        <p className="text-muted-foreground mt-2">Manage staff, admin, and faculty accounts.</p>
-      </div>
-    </div>
-  );
-}
-
-function Events() {
-  return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Events</h1>
-        <p className="text-muted-foreground mt-2">Create and manage upcoming institutional events.</p>
-      </div>
-    </div>
-  );
-}
-
-function Reports() {
-  return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Reports</h1>
-        <p className="text-muted-foreground mt-2">Review, approve, or reject event reports.</p>
-      </div>
-    </div>
-  );
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuthStore();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  return <>{children}</>;
 }
 
 function App() {
+  const { isAuthenticated, checkAuth } = useAuthStore();
+
+  useEffect(() => {
+    if (isAuthenticated) checkAuth();
+  }, []);
+
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<Layout />}>
+        <Route path="/login" element={isAuthenticated ? <Navigate to="/" replace /> : <Login />} />
+        <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Dashboard />} />
-          <Route path="users" element={<Users />} />
-          <Route path="events" element={<Events />} />
-          <Route path="reports" element={<Reports />} />
+          <Route path="users" element={<UsersPage />} />
+          <Route path="events" element={<EventsPage />} />
+          <Route path="reports" element={<ReportsPage />} />
         </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );

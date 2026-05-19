@@ -1,7 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, FileText } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, FileText, LogOut } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useAuthStore } from '../../stores/authStore';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -16,6 +17,7 @@ const navItems = [
 
 export function Sidebar() {
   const location = useLocation();
+  const { user, logout } = useAuthStore();
 
   return (
     <aside className="w-64 border-r bg-card flex flex-col h-full shadow-sm">
@@ -45,8 +47,20 @@ export function Sidebar() {
           );
         })}
       </nav>
-      <div className="p-4 border-t text-xs text-center text-muted-foreground">
-        Event Report System v1.0
+      <div className="p-4 border-t space-y-3">
+        {user && (
+          <div className="px-2">
+            <p className="text-sm font-medium truncate">{user.name}</p>
+            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+          </div>
+        )}
+        <button
+          onClick={logout}
+          className="flex items-center w-full px-4 py-2.5 rounded-lg font-medium text-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-all duration-200"
+        >
+          <LogOut className="w-4 h-4 mr-3" />
+          Sign Out
+        </button>
       </div>
     </aside>
   );

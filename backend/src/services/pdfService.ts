@@ -70,10 +70,19 @@ class PdfService {
       const tmpl = report.template as any;
       htmlTemplate = tmpl.htmlContent;
     } else {
-      // Use default template
-      const templatePath = path.join(process.cwd(), 'src', 'templates', 'default.hbs');
+      // Select template based on event theme type
+      const event = report.event as any;
+      const themeType = event?.themeType?.toUpperCase() || 'CORPORATE';
+      const templateMap: Record<string, string> = {
+        'CULTURAL': 'cultural.hbs',
+        'TECHNICAL': 'technical.hbs',
+        'SEMINAR': 'seminar.hbs',
+      };
+      const templateFile = templateMap[themeType] || 'default.hbs';
+      const templatePath = path.join(process.cwd(), 'src', 'templates', templateFile);
       htmlTemplate = await fs.readFile(templatePath, 'utf-8');
     }
+
 
     // Compile and render
     const compiled = Handlebars.compile(htmlTemplate);
