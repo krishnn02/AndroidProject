@@ -16,7 +16,12 @@ import imageRoutes from './routes/imageRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 
+import path from 'path';
+
 const app = express();
+
+// Static files
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Security
 app.use(helmet());

@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { useAuthStore } from '../src/stores/authStore';
 import { View, ActivityIndicator } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from '../src/theme';
 import '../global.css';
 
@@ -18,7 +19,7 @@ export default function RootLayout() {
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === '(auth)';
-    const isRoot = segments.length === 0;
+    const isRoot = (segments.length as number) === 0;
 
     if (!isAuthenticated && !inAuthGroup) {
       // Redirect to login if not authenticated
@@ -41,5 +42,10 @@ export default function RootLayout() {
     );
   }
 
-  return <Slot />;
+  return (
+    <SafeAreaProvider>
+      <Slot />
+    </SafeAreaProvider>
+  );
 }
+

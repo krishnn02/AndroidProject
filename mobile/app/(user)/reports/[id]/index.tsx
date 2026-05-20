@@ -2,10 +2,10 @@ import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
 import { useReportStore } from '../../../../src/stores/reportStore';
 import { Card, Button } from '../../../../src/components/ui';
 import { colors, spacing, fontSize, fontWeight } from '../../../../src/theme';
+import { openPdfPreview, downloadAndSharePdf } from '../../../../src/utils/pdfHelper';
 
 export default function ReportBuilderScreen() {
   const { id } = useLocalSearchParams();
@@ -34,8 +34,19 @@ export default function ReportBuilderScreen() {
   const handleGeneratePdf = async () => {
     try {
       const url = await generatePdf(id as string);
-      if (url) Linking.openURL(url);
-    } catch {}
+      if (url) await openPdfPreview(url);
+    } catch (err: any) {
+      Alert.alert('Error', 'Failed to preview PDF: ' + (err.message || err));
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    try {
+      const url = await generatePdf(id as string);
+      if (url) await downloadAndSharePdf(url, `report-${id}.pdf`);
+    } catch (err: any) {
+      Alert.alert('Error', 'Failed to download PDF: ' + (err.message || err));
+    }
   };
 
   if (isLoading || !currentReport) {
@@ -80,20 +91,31 @@ export default function ReportBuilderScreen() {
       </View>
 
       <View style={styles.actions}>
-        <Button 
-          title="Preview PDF" 
-          variant="outline" 
-          icon={<Ionicons name="eye-outline" size={20} color={colors.primary} />}
-          onPress={handleGeneratePdf}
-          loading={isSaving}
-          style={{ marginBottom: spacing.md }}
-        />
+        <View style={styles.pdfButtonsRow}>
+          <Button 
+            title="Preview PDF" 
+            variant="outline" 
+            icon={<Ionicons name="eye-outline" size={20} color={colors.primary} />}
+            onPress={handleGeneratePdf}
+            loading={isSaving}
+            style={styles.halfBtn}
+          />
+          <Button 
+            title="Download PDF" 
+            variant="outline" 
+            icon={<Ionicons name="download-outline" size={20} color={colors.primary} />}
+            onPress={handleDownloadPdf}
+            loading={isSaving}
+            style={styles.halfBtn}
+          />
+        </View>
         
         {isEditable && (
           <Button 
             title="Submit for Approval" 
             icon={<Ionicons name="checkmark-circle-outline" size={20} color="#fff" />}
             onPress={handleSubmit}
+            style={{ marginTop: spacing.md }}
           />
         )}
       </View>
@@ -114,4 +136,12 @@ const styles = StyleSheet.create({
   toolCard: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, marginBottom: spacing.sm, gap: spacing.md },
   toolText: { fontSize: fontSize.md, fontWeight: fontWeight.medium, color: colors.text },
   actions: { marginTop: spacing.lg },
+  pdfButtonsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  halfBtn: {
+    flex: 1,
+  },
 });

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import * as Linking from 'expo-linking';
+import { openPdfPreview, downloadAndSharePdf } from '../../src/utils/pdfHelper';
 import { useRouter } from 'expo-router';
 import { reportApi, imageApi, eventApi } from '../../src/services';
 import { useReportStore } from '../../src/stores/reportStore';
@@ -32,6 +32,9 @@ export default function CreateReportScreen() {
   const router = useRouter();
   const { generatePdf } = useReportStore();
 
+  // Section 0: Theme selector state
+  const [themeType, setThemeType] = useState<'CORPORATE' | 'CULTURAL' | 'TECHNICAL' | 'SEMINAR' | 'SUSTAINABLE'>('CORPORATE');
+
   // Section 1: Logos
   const [logos, setLogos] = useState<(string | null)[]>([null, null, null, null]);
 
@@ -41,11 +44,16 @@ export default function CreateReportScreen() {
   // Section 3: Event Details
   const [eventDetails, setEventDetails] = useState<EventDetailField[]>(DEFAULT_EVENT_DETAILS);
 
-  // Section 4: Content
-  const [contentBlocks, setContentBlocks] = useState<string[]>(['']);
+  interface ContentBlock {
+    heading: string;
+    text: string;
+    images: (string | null)[];
+  }
 
-  // Section 5: Images
-  const [images, setImages] = useState<(string | null)[]>([null, null]);
+  // Section 4: Content blocks (sections containing Heading, Text, and Photos)
+  const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([
+    { heading: 'About the Event', text: '', images: [null, null] }
+  ]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -91,38 +99,77 @@ export default function CreateReportScreen() {
     setEventDetails(eventDetails.filter((_, i) => i !== index));
   };
 
-  // ---------- Content Helpers ----------
-  const updateContent = (index: number, text: string) => {
+  // ---------- Content Blocks Helpers ----------
+  const updateBlockHeading = (index: number, heading: string) => {
     const updated = [...contentBlocks];
-    updated[index] = text;
+    updated[index] = { ...updated[index], heading };
     setContentBlocks(updated);
   };
 
-  const addContentBlock = () => setContentBlocks([...contentBlocks, '']);
+  const updateBlockText = (index: number, text: string) => {
+    const updated = [...contentBlocks];
+    updated[index] = { ...updated[index], text };
+    setContentBlocks(updated);
+  };
+
+  const addContentBlock = () => {
+    setContentBlocks([
+      ...contentBlocks,
+      { heading: `Section ${contentBlocks.length + 1}`, text: '', images: [null, null] }
+    ]);
+  };
 
   const removeContentBlock = (index: number) => {
     if (contentBlocks.length <= 1) return;
     setContentBlocks(contentBlocks.filter((_, i) => i !== index));
   };
 
-  // ---------- Image Helpers ----------
-  const pickImage = async (index: number) => {
+  const moveBlockUp = (index: number) => {
+    if (index === 0) return;
+    const updated = [...contentBlocks];
+    const temp = updated[index];
+    updated[index] = updated[index - 1];
+    updated[index - 1] = temp;
+    setContentBlocks(updated);
+  };
+
+  const moveBlockDown = (index: number) => {
+    if (index === contentBlocks.length - 1) return;
+    const updated = [...contentBlocks];
+    const temp = updated[index];
+    updated[index] = updated[index + 1];
+    updated[index + 1] = temp;
+    setContentBlocks(updated);
+  };
+
+  // ---------- Block Images Helpers ----------
+  const pickBlockImage = async (blockIdx: number, imgIdx: number) => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      const updated = [...images];
-      updated[index] = result.assets[0].uri;
-      setImages(updated);
+      const updatedBlocks = [...contentBlocks];
+      const updatedImages = [...updatedBlocks[blockIdx].images];
+      updatedImages[imgIdx] = result.assets[0].uri;
+      updatedBlocks[blockIdx] = { ...updatedBlocks[blockIdx], images: updatedImages };
+      setContentBlocks(updatedBlocks);
     }
   };
 
-  const addImageField = () => setImages([...images, null]);
+  const addBlockImageField = (blockIdx: number) => {
+    const updatedBlocks = [...contentBlocks];
+    const updatedImages = [...updatedBlocks[blockIdx].images, null];
+    updatedBlocks[blockIdx] = { ...updatedBlocks[blockIdx], images: updatedImages };
+    setContentBlocks(updatedBlocks);
+  };
 
-  const removeImageField = (index: number) => {
-    if (images.length <= 1) return;
-    setImages(images.filter((_, i) => i !== index));
+  const removeBlockImageField = (blockIdx: number, imgIdx: number) => {
+    const updatedBlocks = [...contentBlocks];
+    if (updatedBlocks[blockIdx].images.length <= 1) return;
+    const updatedImages = updatedBlocks[blockIdx].images.filter((_, i) => i !== imgIdx);
+    updatedBlocks[blockIdx] = { ...updatedBlocks[blockIdx], images: updatedImages };
+    setContentBlocks(updatedBlocks);
   };
 
   // ---------- Submit ----------
@@ -149,9 +196,9 @@ export default function CreateReportScreen() {
         }
       }
 
-      // Step 2: Create the underlying Event
+      // Step 2: Create the Event (using selected theme type)
       const getDetail = (key: string) => eventDetails.find((d) => d.key === key)?.value || '';
-      
+
       const newEventData = {
         name: getDetail('Event Name') || title || 'New Event',
         type: 'OTHER',
@@ -159,17 +206,17 @@ export default function CreateReportScreen() {
         date: new Date().toISOString(),
         venue: getDetail('Venue of the Event') || 'TBD',
         convener: getDetail('Event Convenor') || 'Admin',
-        themeType: 'CORPORATE'
+        themeType: themeType,
       };
-      
+
       const { data: eventRes } = await eventApi.create(newEventData);
       const newEventId = eventRes.data.event._id;
 
-      // Step 2b: Create the report linked to this new event
+      // Step 3: Create the report
       const { data: reportData } = await reportApi.create(newEventId);
       const reportId = reportData.data.report._id;
 
-      // Step 3: Update front page with logos, title, and event details
+      // Step 4: Update front page
       const frontPage = {
         logos: uploadedLogos,
         eventTitle: title,
@@ -179,41 +226,32 @@ export default function CreateReportScreen() {
       };
       await reportApi.updateFrontPage(reportId, frontPage);
 
-      // Step 4: Create sections for each content block
+      // Step 5: Save sections and upload images section-by-section
       for (let i = 0; i < contentBlocks.length; i++) {
-        const text = contentBlocks[i].trim();
-        if (text) {
+        const block = contentBlocks[i];
+        const text = block.text.trim();
+        // Create section if it has text or images
+        if (text || block.images.some((img) => img !== null)) {
           const sectionData = {
-            type: 'CUSTOM',
-            heading: i === 0 ? 'About the Event' : `Section ${i + 1}`,
-            content: { paragraphs: [text] },
+            type: i === 0 ? 'ABOUT' : 'CUSTOM',
+            heading: block.heading.trim() || `Section ${i + 1}`,
+            content: { paragraphs: text ? [text] : [] },
             sortOrder: i,
           };
-          await reportApi.addSection(reportId, sectionData);
-        }
-      }
+          const { data: sectionRes } = await reportApi.addSection(reportId, sectionData);
+          const sectionId = sectionRes.data.section._id;
 
-      // Step 5: Create a gallery section for images
-      const uploadedImages = images.filter((img) => img !== null) as string[];
-      if (uploadedImages.length > 0) {
-        const galleryData = {
-          type: 'GALLERY',
-          heading: 'Photographs',
-          content: {},
-          sortOrder: contentBlocks.length,
-        };
-        const { data: sectionRes } = await reportApi.addSection(reportId, galleryData);
-        const sectionId = sectionRes.data.section._id;
-
-        // Upload images to the gallery section
-        for (const imgUri of uploadedImages) {
-          const formData = new FormData();
-          formData.append('images', {
-            uri: imgUri,
-            type: 'image/jpeg',
-            name: 'photo.jpg',
-          } as any);
-          await imageApi.upload(sectionId, formData);
+          // Upload images for this section
+          const sectionImages = block.images.filter((img) => img !== null) as string[];
+          for (const imgUri of sectionImages) {
+            const formData = new FormData();
+            formData.append('images', {
+              uri: imgUri,
+              type: 'image/jpeg',
+              name: 'photo.jpg',
+            } as any);
+            await imageApi.upload(sectionId, formData);
+          }
         }
       }
 
@@ -224,11 +262,12 @@ export default function CreateReportScreen() {
       try {
         const pdfUrl = await generatePdf(reportId);
         Alert.alert('Success!', 'Report created and PDF generated.', [
-          { text: 'View PDF', onPress: () => Linking.openURL(pdfUrl) },
+          { text: 'Preview PDF', onPress: () => openPdfPreview(pdfUrl) },
+          { text: 'Download PDF', onPress: () => downloadAndSharePdf(pdfUrl, `report-${reportId}.pdf`) },
           { text: 'Done', onPress: () => router.back() },
         ]);
       } catch {
-        Alert.alert('Report Created', 'Report was submitted but PDF generation requires Cloudinary configuration.', [
+        Alert.alert('Report Created', 'Report was submitted but PDF generation failed. You can try generating the PDF later from the Reports tab.', [
           { text: 'OK', onPress: () => router.back() },
         ]);
       }
@@ -245,6 +284,31 @@ export default function CreateReportScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
       <Text style={styles.pageTitle}>Create Event Report</Text>
       <Text style={styles.pageSubtitle}>Fill in the sections below to generate a styled PDF report</Text>
+
+      {/* ===== SECTION 0: THEME SELECTOR ===== */}
+      <View style={styles.sectionContainer}>
+        <View style={styles.sectionHeader}>
+          <Ionicons name="color-palette-outline" size={20} color={colors.primary} />
+          <Text style={styles.sectionTitle}>Select Report Theme</Text>
+        </View>
+        <Text style={styles.sectionHint}>Select the theme style to be applied to the background and layout</Text>
+        <View style={styles.themeGrid}>
+          {(['CORPORATE', 'CULTURAL', 'TECHNICAL', 'SEMINAR', 'SUSTAINABLE'] as const).map((t) => (
+            <TouchableOpacity
+              key={t}
+              style={[
+                styles.themeBtn,
+                themeType === t && styles.themeBtnActive,
+              ]}
+              onPress={() => setThemeType(t)}
+            >
+              <Text style={[styles.themeBtnText, themeType === t && styles.themeBtnTextActive]}>
+                {t === 'CORPORATE' ? 'Default (Corporate)' : t.charAt(0) + t.slice(1).toLowerCase()}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
 
       {/* ===== SECTION 1: LOGOS ===== */}
       <View style={styles.sectionContainer}>
@@ -329,66 +393,83 @@ export default function CreateReportScreen() {
         <Button variant="outline" size="sm" title="Add Field" icon={<Ionicons name="add" size={16} color={colors.primary} />} onPress={addDetailField} style={styles.addBtn} />
       </View>
 
-      {/* ===== SECTION 4: CONTENT ===== */}
+      {/* ===== SECTION 4: CONTENT CARDS ===== */}
       <View style={styles.sectionContainer}>
         <View style={styles.sectionHeader}>
           <Ionicons name="document-text-outline" size={20} color={colors.primary} />
-          <Text style={styles.sectionTitle}>Content</Text>
+          <Text style={styles.sectionTitle}>Content Sections</Text>
         </View>
-        <Text style={styles.sectionHint}>Each block becomes a separate styled card in the PDF</Text>
-        {contentBlocks.map((text, idx) => (
-          <View key={idx} style={styles.contentBlock}>
-            <View style={styles.contentBlockHeader}>
-              <Text style={styles.contentBlockLabel}>Block {idx + 1}</Text>
+        <Text style={styles.sectionHint}>Each card becomes a rounded card over the parent background. You can add images directly to each section.</Text>
+        {contentBlocks.map((block, idx) => (
+          <View key={idx} style={styles.blockCard}>
+            <View style={styles.blockHeader}>
+              <View style={styles.blockControlsLeft}>
+                <Text style={styles.blockLabel}>Section {idx + 1}</Text>
+                <View style={styles.reorderButtons}>
+                  <TouchableOpacity onPress={() => moveBlockUp(idx)} disabled={idx === 0} style={[styles.reorderBtn, idx === 0 && styles.disabledBtn]}>
+                    <Ionicons name="arrow-up" size={16} color={idx === 0 ? colors.textMuted : colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => moveBlockDown(idx)} disabled={idx === contentBlocks.length - 1} style={[styles.reorderBtn, idx === contentBlocks.length - 1 && styles.disabledBtn]}>
+                    <Ionicons name="arrow-down" size={16} color={idx === contentBlocks.length - 1 ? colors.textMuted : colors.primary} />
+                  </TouchableOpacity>
+                </View>
+              </View>
               {contentBlocks.length > 1 && (
                 <TouchableOpacity onPress={() => removeContentBlock(idx)}>
                   <Ionicons name="trash-outline" size={18} color={colors.error} />
                 </TouchableOpacity>
               )}
             </View>
+
+            <TextInput
+              style={[styles.input, { marginBottom: spacing.sm }]}
+              placeholder="Section Heading (e.g. About the Event)"
+              placeholderTextColor={colors.textMuted}
+              value={block.heading}
+              onChangeText={(t) => updateBlockHeading(idx, t)}
+            />
+
             <TextInput
               style={styles.textArea}
-              value={text}
-              onChangeText={(t) => updateContent(idx, t)}
+              value={block.text}
+              onChangeText={(t) => updateBlockText(idx, t)}
               multiline
-              numberOfLines={5}
-              placeholder="Enter content for this section..."
+              numberOfLines={4}
+              placeholder="Enter section content text..."
               placeholderTextColor={colors.textMuted}
               textAlignVertical="top"
             />
+
+            {/* Section Images Grid */}
+            <Text style={styles.blockSubLabel}>Section Photos</Text>
+            <View style={styles.blockImageGrid}>
+              {block.images.map((uri, imgIdx) => (
+                <View key={imgIdx} style={styles.logoSlot}>
+                  <TouchableOpacity style={styles.blockImagePicker} onPress={() => pickBlockImage(idx, imgIdx)}>
+                    {uri ? (
+                      <RNImage source={{ uri }} style={styles.logoPreview} />
+                    ) : (
+                      <View style={styles.logoPlaceholder}>
+                        <Ionicons name="add" size={20} color={colors.textMuted} />
+                        <Text style={{ fontSize: 8, color: colors.textMuted }}>Photo {imgIdx + 1}</Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  {block.images.length > 1 && (
+                    <TouchableOpacity style={styles.removeBtn} onPress={() => removeBlockImageField(idx, imgIdx)}>
+                      <Ionicons name="close-circle" size={16} color={colors.error} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+              <TouchableOpacity style={styles.addPhotoBtn} onPress={() => addBlockImageField(idx)}>
+                <Ionicons name="add" size={20} color={colors.primary} />
+                <Text style={styles.addPhotoBtnText}>Add Slot</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ))}
-        <Button variant="outline" size="sm" title="Add Content Block" icon={<Ionicons name="add" size={16} color={colors.primary} />} onPress={addContentBlock} style={styles.addBtn} />
-      </View>
-
-      {/* ===== SECTION 5: IMAGES ===== */}
-      <View style={styles.sectionContainer}>
-        <View style={styles.sectionHeader}>
-          <Ionicons name="camera-outline" size={20} color={colors.primary} />
-          <Text style={styles.sectionTitle}>Images</Text>
-        </View>
-        <Text style={styles.sectionHint}>Event photographs for the gallery section</Text>
-        <View style={styles.imageGrid}>
-          {images.map((uri, idx) => (
-            <View key={idx} style={styles.imageSlot}>
-              <TouchableOpacity style={styles.imagePicker} onPress={() => pickImage(idx)}>
-                {uri ? (
-                  <RNImage source={{ uri }} style={styles.imagePreview} />
-                ) : (
-                  <View style={styles.imagePlaceholder}>
-                    <Ionicons name="add" size={28} color={colors.textMuted} />
-                  </View>
-                )}
-              </TouchableOpacity>
-              {images.length > 1 && (
-                <TouchableOpacity style={styles.removeBtn} onPress={() => removeImageField(idx)}>
-                  <Ionicons name="close-circle" size={20} color={colors.error} />
-                </TouchableOpacity>
-              )}
-            </View>
-          ))}
-        </View>
-        <Button variant="outline" size="sm" title="Add Image" icon={<Ionicons name="add" size={16} color={colors.primary} />} onPress={addImageField} style={styles.addBtn} />
+        <Button variant="outline" size="sm" title="Add Section Card" icon={<Ionicons name="add" size={16} color={colors.primary} />} onPress={addContentBlock} style={styles.addBtn} />
       </View>
 
       {/* ===== SUBMIT ===== */}
@@ -430,6 +511,29 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text, marginLeft: spacing.sm },
   sectionHint: { fontSize: fontSize.xs, color: colors.textMuted, marginBottom: spacing.md, fontStyle: 'italic' },
 
+  // Themes
+  themeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs },
+  themeBtn: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bg,
+  },
+  themeBtnActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  themeBtnText: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.semibold,
+  },
+  themeBtnTextActive: {
+    color: '#FFFFFF',
+  },
+
   // Logos
   logoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   logoSlot: { position: 'relative' },
@@ -463,23 +567,91 @@ const styles = StyleSheet.create({
   },
   kvRemove: { padding: 4 },
 
-  // Content blocks
-  contentBlock: { marginBottom: spacing.md },
-  contentBlockHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.xs },
-  contentBlockLabel: { fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: colors.textSecondary },
+  // Content cards / blocks
+  blockCard: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  blockHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  blockControlsLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  blockLabel: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+  reorderButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  reorderBtn: {
+    padding: 4,
+    backgroundColor: colors.bg,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  disabledBtn: {
+    opacity: 0.5,
+  },
+  blockSubLabel: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+  },
+  blockImageGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    alignItems: 'center',
+  },
+  blockImagePicker: {
+    width: 60,
+    height: 60,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    overflow: 'hidden',
+  },
+  addPhotoBtn: {
+    width: 60,
+    height: 60,
+    borderRadius: borderRadius.sm,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addPhotoBtnText: {
+    fontSize: 8,
+    color: colors.primary,
+    fontWeight: fontWeight.bold,
+    marginTop: 2,
+  },
   textArea: {
     backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border,
     borderRadius: borderRadius.md, padding: spacing.md,
     fontSize: fontSize.sm, color: colors.text,
-    minHeight: 100,
+    minHeight: 80,
   },
-
-  // Images
-  imageGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
-  imageSlot: { position: 'relative' },
-  imagePicker: { width: 100, height: 100, borderRadius: borderRadius.md, borderWidth: 2, borderColor: colors.border, borderStyle: 'dashed', overflow: 'hidden' },
-  imagePreview: { width: '100%', height: '100%', resizeMode: 'cover' },
-  imagePlaceholder: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   addBtn: { marginTop: spacing.md, alignSelf: 'flex-start' },
 

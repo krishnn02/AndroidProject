@@ -9,7 +9,7 @@ export default function AdminLayout() {
         headerShown: true,
         headerStyle: { backgroundColor: colors.bgCard, elevation: 0, shadowOpacity: 0, borderBottomWidth: 1, borderBottomColor: colors.border },
         headerTintColor: colors.text,
-        tabBarStyle: { backgroundColor: colors.bgCard, borderTopColor: colors.border, paddingBottom: 5, paddingTop: 5, height: 60 },
+        tabBarStyle: { backgroundColor: colors.bgCard, borderTopColor: colors.border },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         sceneStyle: { backgroundColor: colors.bg }

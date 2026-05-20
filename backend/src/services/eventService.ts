@@ -46,7 +46,7 @@ class EventService {
       .lean();
 
     return {
-      events: events as IEvent[],
+      events: events as any as IEvent[],
       total,
       page,
       totalPages: Math.ceil(total / limit),

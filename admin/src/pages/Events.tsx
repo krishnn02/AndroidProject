@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, Edit, Loader2, X, Search, UserPlus, Calendar } from 'lucide-react';
+import { Plus, Trash2, Edit, Loader2, X, Search, UserPlus } from 'lucide-react';
 import { eventsApi, usersApi } from '../services/api';
 
 const EVENT_TYPES = ['CULTURAL', 'TECHNICAL', 'SEMINAR', 'WORKSHOP', 'INDUSTRIAL_VISIT', 'OTHER'];

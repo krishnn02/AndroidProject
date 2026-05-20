@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, ViewStyle, TextInputProps, TouchableOpacity } from 'react-native';
+import { View, TextInput, Text, StyleSheet, ViewStyle, TextInputProps, TouchableOpacity, StyleProp } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, borderRadius, fontSize, fontWeight, spacing } from '../../theme';
 
@@ -7,7 +7,7 @@ interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   icon?: keyof typeof Ionicons.glyphMap;
-  containerStyle?: ViewStyle;
+  containerStyle?: StyleProp<ViewStyle>;
 }
 
 export const Input: React.FC<InputProps> = ({

@@ -154,13 +154,18 @@ export const useReportStore = create<ReportState>()((set, get) => ({
   },
 
   generatePdf: async (id) => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
+      console.log('[ReportStore] Generating PDF for report:', id);
       const { data } = await reportApi.generatePdf(id);
+      const pdfUrl = data.data.pdfUrl;
+      console.log('[ReportStore] PDF generated successfully:', pdfUrl);
       set({ isLoading: false });
-      return data.data.pdfUrl;
+      return pdfUrl;
     } catch (error: any) {
-      set({ error: error.response?.data?.message || 'PDF generation failed', isLoading: false });
+      const message = error.response?.data?.message || error.message || 'PDF generation failed';
+      console.error('[ReportStore] PDF generation failed:', message, error);
+      set({ error: message, isLoading: false });
       throw error;
     }
   },

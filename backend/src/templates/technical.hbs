@@ -83,13 +83,26 @@
   .image-rectangle img { width: 100%; max-height: 400px; object-fit: cover; border-radius: 6px; }
   .img-caption { text-align: center; font-size: 8pt; color: #64748b; margin-top: 4px; font-style: italic; }
 
-  .image-container { margin: 16px 0; }
-  .img-full { text-align: center; }
-  .img-full img { width: 100%; max-height: 400px; object-fit: cover; border-radius: 8px; }
-  .img-side-by-side { display: flex; gap: 12px; }
-  .img-side-by-side img { flex: 1; width: 48%; height: 240px; object-fit: cover; border-radius: 8px; }
-  .img-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(45%, 1fr)); gap: 12px; }
-  .img-grid img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; }
+  /* ===== IMAGE GRID LAYOUTS (in sections) ===== */
+  .section-grid {
+    display: block;
+  }
+  .section-grid.has-images {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 20px;
+    align-items: start;
+  }
+  .section-text { flex: 1; }
+  .section-photos { flex: 1; }
+  .image-container { display: grid; gap: 12px; width: 100%; }
+  .img-full { grid-template-columns: 1fr; }
+  .img-full img { width: 100%; max-height: 320px; object-fit: cover; border-radius: 8px; }
+  .img-side-by-side { grid-template-columns: 1fr 1fr; }
+  .img-side-by-side img { width: 100%; height: 160px; object-fit: cover; border-radius: 8px; }
+  .img-grid { grid-template-columns: 1fr 1fr; }
+  .img-grid img { width: 100%; height: 120px; object-fit: cover; border-radius: 8px; }
+  .image-wrapper { position: relative; }
 
   .budget-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 10pt; }
   .budget-table th { background: #0ea5e9; color: #0f172a; padding: 10px 14px; text-align: left; font-weight: 700; font-size: 9pt; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; }
@@ -137,16 +150,27 @@
     {{#unless (eq this.type "BUDGET")}}{{#unless (eq this.type "GALLERY")}}
       <div class="content-card">
         <h2 class="section-heading">{{this.heading}}</h2>
-        <div class="section-content">
-          {{#each this.content.paragraphs}}<p>{{this}}</p>{{/each}}
-          {{#if this.content.bullets.length}}<ul>{{#each this.content.bullets}}<li>{{this}}</li>{{/each}}</ul>{{/if}}
-          {{#if this.content.richText}}{{{this.content.richText}}}{{/if}}
-        </div>
-        {{#if this.images.length}}
-          <div class="image-container {{imageGridClass this.imageCount}}">
-            {{#each this.images}}<div><img src="{{this.url}}" alt="{{this.caption}}">{{#if this.caption}}<div class="img-caption">{{this.caption}}</div>{{/if}}</div>{{/each}}
+        <div class="section-grid {{#if this.images.length}}has-images{{/if}}">
+          <div class="section-text">
+            <div class="section-content">
+              {{#each this.content.paragraphs}}<p>{{this}}</p>{{/each}}
+              {{#if this.content.bullets.length}}<ul>{{#each this.content.bullets}}<li>{{this}}</li>{{/each}}</ul>{{/if}}
+              {{#if this.content.richText}}{{{this.content.richText}}}{{/if}}
+            </div>
           </div>
-        {{/if}}
+          {{#if this.images.length}}
+            <div class="section-photos">
+              <div class="image-container {{imageGridClass this.imageCount}}">
+                {{#each this.images}}
+                  <div class="image-wrapper">
+                    <img src="{{this.url}}" alt="{{this.caption}}">
+                    {{#if this.caption}}<div class="img-caption">{{this.caption}}</div>{{/if}}
+                  </div>
+                {{/each}}
+              </div>
+            </div>
+          {{/if}}
+        </div>
       </div>
     {{/unless}}{{/unless}}
   {{/each}}

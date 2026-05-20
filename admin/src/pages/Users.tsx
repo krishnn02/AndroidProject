@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users as UsersIcon, Plus, Trash2, Edit, Loader2, X, Search } from 'lucide-react';
+import { Plus, Trash2, Edit, Loader2, X, Search } from 'lucide-react';
 import { usersApi } from '../services/api';
 
 interface User {

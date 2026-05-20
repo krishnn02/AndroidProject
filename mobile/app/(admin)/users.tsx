@@ -41,7 +41,7 @@ export default function AdminUsersScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.title}>User Management</Text>
-          <Button size="sm" icon={<Ionicons name="person-add" size={20} color={colors.surface} />} title="New User" onPress={handleNewUser} />
+          <Button size="sm" icon={<Ionicons name="person-add" size={20} color={colors.text} />} title="New User" onPress={handleNewUser} />
         </View>
 
         {users.map((u) => (
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     marginRight: spacing.md,
   },
   avatarText: {
-    color: colors.surface,
+    color: colors.text,
     fontSize: fontSize.xl,
     fontWeight: fontWeight.bold,
   },
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.secondary + '20',
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    borderRadius: borderRadius.pill,
+    borderRadius: borderRadius.full,
     marginRight: spacing.sm,
   },
   roleText: {

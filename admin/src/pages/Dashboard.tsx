@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Users, Calendar, FileText, CheckCircle, Clock, XCircle, Loader2 } from 'lucide-react';
+import { Users, Calendar, FileText, CheckCircle, Clock, Loader2 } from 'lucide-react';
 import { analyticsApi, reportsApi } from '../services/api';
 
 const PIE_COLORS = ['hsl(222, 47%, 11%)', 'hsl(45, 93%, 47%)', 'hsl(142, 71%, 45%)', 'hsl(0, 84%, 60%)'];

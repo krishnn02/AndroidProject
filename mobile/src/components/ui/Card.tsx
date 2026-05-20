@@ -1,11 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ViewStyle, StyleProp } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, borderRadius, spacing, fontSize, fontWeight, shadows } from '../../theme';
 
 interface CardProps {
   children: React.ReactNode;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   onPress?: () => void;
   gradient?: boolean;
 }
@@ -41,10 +41,11 @@ interface StatCardProps {
   icon: React.ReactNode;
   color?: string;
   onPress?: () => void;
+  style?: StyleProp<ViewStyle>;
 }
 
-export const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color = colors.primary, onPress }) => (
-  <Card onPress={onPress} style={styles.statCard}>
+export const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color = colors.primary, onPress, style }) => (
+  <Card onPress={onPress} style={[styles.statCard, style]}>
     <View style={[styles.iconCircle, { backgroundColor: color + '20' }]}>
       {icon}
     </View>

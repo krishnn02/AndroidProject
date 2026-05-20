@@ -21,13 +21,13 @@ class AuthService {
     const accessToken = jwt.sign(
       { userId, role },
       config.jwt.secret,
-      { expiresIn: config.jwt.expiresIn }
+      { expiresIn: config.jwt.expiresIn as any }
     );
 
     const refreshToken = jwt.sign(
       { userId, role },
       config.jwt.refreshSecret,
-      { expiresIn: config.jwt.refreshExpiresIn }
+      { expiresIn: config.jwt.refreshExpiresIn as any }
     );
 
     return { accessToken, refreshToken };

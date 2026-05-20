@@ -56,7 +56,7 @@ export default function AdminEventsScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.title}>All Events</Text>
-          <Button size="sm" icon={<Ionicons name="add" size={20} color={colors.surface} />} title="New" onPress={handleNewEvent} />
+          <Button size="sm" icon={<Ionicons name="add" size={20} color={colors.text} />} title="New" onPress={handleNewEvent} />
         </View>
 
         {events.map((event) => (
@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
   statusBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    borderRadius: borderRadius.pill,
+    borderRadius: borderRadius.full,
   },
   statusText: {
     fontSize: fontSize.xs,

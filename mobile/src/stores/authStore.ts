@@ -92,3 +92,8 @@ export const useAuthStore = create<AuthState>()(
     }
   )
 );
+
+import { setUnauthorizedCallback } from '../services/api';
+setUnauthorizedCallback(() => {
+  useAuthStore.setState({ user: null, isAuthenticated: false });
+});

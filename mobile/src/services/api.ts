@@ -17,7 +17,7 @@ console.log('[API] Resolved Base URL:', API_BASE_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000,
+  timeout: 120000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -51,6 +51,13 @@ const processQueue = (error: any, token: string | null = null) => {
   failedQueue = [];
 };
 
+// Callback for auth failures (session expired/invalid)
+let onUnauthorized: (() => void) | null = null;
+
+export const setUnauthorizedCallback = (callback: () => void) => {
+  onUnauthorized = callback;
+};
+
 // Response interceptor - handle token refresh
 api.interceptors.response.use(
   (response) => response,
@@ -79,7 +86,10 @@ api.interceptors.response.use(
 
     try {
       const refreshToken = await SecureStore.getItemAsync('refreshToken');
-      if (!refreshToken) throw new Error('No refresh token');
+      if (!refreshToken) {
+        if (onUnauthorized) onUnauthorized();
+        throw new Error('No refresh token');
+      }
 
       const { data } = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
       const { accessToken, refreshToken: newRefresh } = data.data;
@@ -96,6 +106,9 @@ api.interceptors.response.use(
       processQueue(refreshError, null);
       await SecureStore.deleteItemAsync('accessToken');
       await SecureStore.deleteItemAsync('refreshToken');
+      if (onUnauthorized) {
+        onUnauthorized();
+      }
       return Promise.reject(refreshError);
     } finally {
       isRefreshing = false;

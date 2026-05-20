@@ -127,10 +127,13 @@ class ReportService {
       throw createError(400, 'Report can only be submitted from draft or rejected state');
     }
 
-    report.status = ReportStatus.SUBMITTED;
-    report.submittedAt = new Date();
-    await report.save();
-    return report;
+    await Report.updateOne(
+      { _id: reportId },
+      { $set: { status: ReportStatus.SUBMITTED, submittedAt: new Date() } }
+    );
+    const updatedReport = await Report.findById(reportId);
+    if (!updatedReport) throw createError(404, 'Report not found');
+    return updatedReport;
   }
 
   /**
@@ -143,11 +146,13 @@ class ReportService {
       throw createError(400, 'Only submitted reports can be approved');
     }
 
-    report.status = ReportStatus.APPROVED;
-    report.approvedAt = new Date();
-    report.approvedBy = approvedBy as any;
-    await report.save();
-    return report;
+    await Report.updateOne(
+      { _id: reportId },
+      { $set: { status: ReportStatus.APPROVED, approvedAt: new Date(), approvedBy: approvedBy as any } }
+    );
+    const updatedReport = await Report.findById(reportId);
+    if (!updatedReport) throw createError(404, 'Report not found');
+    return updatedReport;
   }
 
   /**
@@ -160,11 +165,13 @@ class ReportService {
       throw createError(400, 'Only submitted reports can be rejected');
     }
 
-    report.status = ReportStatus.REJECTED;
-    report.rejectedAt = new Date();
-    report.rejectionNote = note;
-    await report.save();
-    return report;
+    await Report.updateOne(
+      { _id: reportId },
+      { $set: { status: ReportStatus.REJECTED, rejectedAt: new Date(), rejectionNote: note } }
+    );
+    const updatedReport = await Report.findById(reportId);
+    if (!updatedReport) throw createError(404, 'Report not found');
+    return updatedReport;
   }
 
   // ==================== SECTIONS ====================

@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Linking from 'expo-linking';
 import { reportApi } from '../../src/services';
 import { useReportStore } from '../../src/stores/reportStore';
 import { Card, Button } from '../../src/components/ui';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../src/theme';
+import { openPdfPreview, downloadAndSharePdf } from '../../src/utils/pdfHelper';
 
 export default function AdminReportsScreen() {
   const [reports, setReports] = useState<any[]>([]);
@@ -55,7 +55,7 @@ export default function AdminReportsScreen() {
       { 
         text: 'Reject', 
         style: 'destructive',
-        onPress: async (note) => {
+        onPress: async (note?: string) => {
           try {
             await rejectReport(id, note || 'No reason provided');
             Alert.alert('Success', 'Report rejected successfully');
@@ -72,16 +72,25 @@ export default function AdminReportsScreen() {
     try {
       let url = report.pdfUrl;
       if (!url) {
-        // Only generate if no PDF exists yet
+        Alert.alert('Generating', 'Generating PDF report, please wait...');
         url = await generatePdf(report._id);
       }
-      if (url) {
-        Linking.openURL(url);
-      } else {
-        Alert.alert('No PDF', 'PDF has not been generated for this report yet.');
+      if (!url) {
+        Alert.alert('Error', 'Failed to generate PDF for this report.');
+        return;
       }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to open PDF');
+      
+      Alert.alert(
+        'Report PDF Options',
+        'Choose how you want to access the PDF report.',
+        [
+          { text: 'Preview Inline', onPress: () => openPdfPreview(url) },
+          { text: 'Download & Share', onPress: () => downloadAndSharePdf(url, `report-${report._id}.pdf`) },
+          { text: 'Cancel', style: 'cancel' }
+        ]
+      );
+    } catch (error: any) {
+      Alert.alert('Error', 'Failed to generate/open PDF: ' + (error.message || error));
     }
   };
 
@@ -197,7 +206,7 @@ const styles = StyleSheet.create({
   statusBadge: {
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    borderRadius: borderRadius.pill,
+    borderRadius: borderRadius.full,
   },
   statusText: {
     fontSize: fontSize.xs,

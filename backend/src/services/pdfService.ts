@@ -57,7 +57,7 @@ class PdfService {
   /**
    * Generate PDF for a report
    */
-  async generatePdf(reportId: string): Promise<string> {
+  async generatePdf(reportId: string, baseUrl?: string): Promise<string> {
     // Fetch full report data
     const report = await Report.findById(reportId)
       .populate('event')
@@ -119,6 +119,8 @@ class PdfService {
         'CULTURAL': 'cultural.hbs',
         'TECHNICAL': 'technical.hbs',
         'SEMINAR': 'seminar.hbs',
+        'SUSTAINABLE': 'sustainable.hbs',
+        'ENVIRONMENT': 'sustainable.hbs',
       };
       const templateFile = templateMap[themeType] || 'default.hbs';
       const templatePath = path.join(process.cwd(), 'src', 'templates', templateFile);
@@ -135,7 +137,13 @@ class PdfService {
     const browserInstance = await getBrowser();
     const page = await browserInstance.newPage();
 
-    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
+    // Use domcontentloaded for fast load, then wait softly for network idle
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    try {
+      await page.waitForNetworkIdle({ timeout: 5000 });
+    } catch (e) {
+      console.log('[PDF] Warning: Network did not fully idle in 5s. Proceeding with generation.');
+    }
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
@@ -152,18 +160,40 @@ class PdfService {
 
     await page.close();
 
-    // Upload PDF to Cloudinary
-    const base64Pdf = Buffer.from(pdfBuffer).toString('base64');
-    const result = await cloudinary.uploader.upload(
-      `data:application/pdf;base64,${base64Pdf}`,
-      { folder: 'event-reports/pdfs', resource_type: 'raw', public_id: `report-${reportId}.pdf` }
-    );
+    // Save PDF locally to uploads/reports/
+    const reportsDir = path.join(process.cwd(), 'uploads', 'reports');
+    await fs.mkdir(reportsDir, { recursive: true });
+    const filename = `report-${reportId}.pdf`;
+    const filePath = path.join(reportsDir, filename);
+    await fs.writeFile(filePath, pdfBuffer);
 
-    // Save URL to report
-    report.pdfUrl = result.secure_url;
-    await report.save();
+    // Build the local serving URL (always works for direct downloads)
+    const localPdfUrl = `${baseUrl || ''}/uploads/reports/${filename}`;
+    let cloudinaryUrl = '';
 
-    return result.secure_url;
+    try {
+      console.log(`[PDF] Uploading report-${reportId}.pdf to Cloudinary...`);
+      const uploadResult = await cloudinary.uploader.upload(filePath, {
+        folder: 'event-reports/pdfs',
+        resource_type: 'raw',
+        public_id: `report-${reportId}.pdf`,
+        overwrite: true,
+      });
+      cloudinaryUrl = uploadResult.secure_url;
+      console.log(`[PDF] Cloudinary Upload Success: ${cloudinaryUrl}`);
+    } catch (uploadError) {
+      console.error('[PDF] Cloudinary Upload Failed (local file still available):', uploadError);
+    }
+
+    // Use local URL as primary (always accessible without auth)
+    // Keep local file for serving via Express static middleware
+    const pdfUrl = localPdfUrl;
+    console.log(`[PDF] Serving PDF from local URL: ${pdfUrl}`);
+
+    // Save URL to report (use updateOne to bypass full document validation)
+    await Report.updateOne({ _id: report._id }, { $set: { pdfUrl } });
+
+    return pdfUrl;
   }
 }
 
