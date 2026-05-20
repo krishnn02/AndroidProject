@@ -43,6 +43,13 @@ export default function AdminLayout() {
           tabBarIcon: ({ color, size }) => <Ionicons name="people" size={size} color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="create-report"
+        options={{
+          title: 'Create Report',
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }

@@ -63,14 +63,22 @@ export const useAuthStore = create<AuthState>()(
       loadUser: async () => {
         try {
           const token = await SecureStore.getItemAsync('accessToken');
-          if (!token) return;
+          if (!token) {
+            // No token at all — check if refresh token exists
+            const refresh = await SecureStore.getItemAsync('refreshToken');
+            if (!refresh) {
+              set({ user: null, isAuthenticated: false, isLoading: false });
+              return;
+            }
+          }
 
           set({ isLoading: true });
           const { data } = await authApi.getProfile();
           set({ user: data.data.user, isAuthenticated: true, isLoading: false });
         } catch {
-          await SecureStore.deleteItemAsync('accessToken');
-          await SecureStore.deleteItemAsync('refreshToken');
+          // Don't delete tokens here — the interceptor may still be refreshing.
+          // Only clear in-memory auth state. If the interceptor already cleared
+          // tokens (refresh truly failed), this just resets UI state.
           set({ user: null, isAuthenticated: false, isLoading: false });
         }
       },

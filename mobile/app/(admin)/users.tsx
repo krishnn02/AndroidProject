@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { userApi } from '../../src/services';
 import { Card, Button } from '../../src/components/ui';
@@ -25,6 +25,14 @@ export default function AdminUsersScreen() {
     loadUsers();
   }, []);
 
+  const handleNewUser = () => {
+    Alert.alert('Coming Soon', 'User creation flow will be implemented here.');
+  };
+
+  const handleEditUser = (id: string, name: string) => {
+    Alert.alert('Edit User', `Edit flow for user: ${name} will be here.`);
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView 
@@ -33,7 +41,7 @@ export default function AdminUsersScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.title}>User Management</Text>
-          <Button size="sm" icon={<Ionicons name="person-add" size={20} color={colors.surface} />} title="New User" onPress={() => {}} />
+          <Button size="sm" icon={<Ionicons name="person-add" size={20} color={colors.surface} />} title="New User" onPress={handleNewUser} />
         </View>
 
         {users.map((u) => (
@@ -57,7 +65,7 @@ export default function AdminUsersScreen() {
               variant="ghost" 
               icon={<Ionicons name="create-outline" size={20} color={colors.primary} />} 
               title="" 
-              onPress={() => {}} 
+              onPress={() => handleEditUser(u._id, u.name)} 
             />
           </Card>
         ))}

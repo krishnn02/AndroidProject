@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { eventApi } from '../../src/services';
 import { Card, Button } from '../../src/components/ui';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../src/theme';
 
 export default function AdminEventsScreen() {
+  const router = useRouter();
   const [events, setEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -25,6 +27,18 @@ export default function AdminEventsScreen() {
     loadEvents();
   }, []);
 
+  const handleNewEvent = () => {
+    router.push('/(admin)/create-report');
+  };
+
+  const handleEditEvent = (id: string) => {
+    Alert.alert('Edit Event', `Edit flow for event ID: ${id} will be here.`);
+  };
+
+  const handleAssignUsers = (id: string) => {
+    Alert.alert('Assign Users', `User assignment modal for event ID: ${id} will appear here.`);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'ACTIVE': return colors.success;
@@ -42,7 +56,7 @@ export default function AdminEventsScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.title}>All Events</Text>
-          <Button size="sm" icon={<Ionicons name="add" size={20} color={colors.surface} />} title="New" onPress={() => {}} />
+          <Button size="sm" icon={<Ionicons name="add" size={20} color={colors.surface} />} title="New" onPress={handleNewEvent} />
         </View>
 
         {events.map((event) => (
@@ -68,8 +82,8 @@ export default function AdminEventsScreen() {
               </View>
             </View>
             <View style={styles.actionsRow}>
-              <Button variant="outline" size="sm" title="Edit" onPress={() => {}} style={styles.actionBtn} />
-              <Button variant="primary" size="sm" title="Assign" onPress={() => {}} style={styles.actionBtn} />
+              <Button variant="outline" size="sm" title="Edit" onPress={() => handleEditEvent(event._id)} style={styles.actionBtn} />
+              <Button variant="primary" size="sm" title="Assign" onPress={() => handleAssignUsers(event._id)} style={styles.actionBtn} />
             </View>
           </Card>
         ))}

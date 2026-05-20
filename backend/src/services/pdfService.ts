@@ -30,6 +30,29 @@ Handlebars.registerHelper('formatCurrency', (amount: number) => {
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount);
 });
 
+// Dynamic logo sizing — shrinks logos when there are many
+Handlebars.registerHelper('logoSize', (count: number) => {
+  if (count <= 2) return 80;
+  if (count <= 4) return 65;
+  if (count <= 6) return 50;
+  return 40;
+});
+
+// Get the last element of an array
+Handlebars.registerHelper('lastLogo', (logos: string[]) => {
+  return logos?.[logos.length - 1] || '';
+});
+
+// Check if current index is the last in an array
+Handlebars.registerHelper('isLast', function (this: any, options: any) {
+  const data = options.data;
+  if (data.index === data.last) return options.fn(this);
+  return options.inverse(this);
+});
+
+// Subtract helper for logo count math
+Handlebars.registerHelper('subtract', (a: number, b: number) => a - b);
+
 class PdfService {
   /**
    * Generate PDF for a report
@@ -49,20 +72,39 @@ class PdfService {
 
     const budgets = await Budget.find({ report: reportId });
 
-    // Build template data
+    // Build template data — deep-clone via JSON to strip ALL Mongoose prototypes
+    // This prevents Handlebars from blocking access to nested properties
+    const reportJson = JSON.parse(JSON.stringify(report.toJSON()));
+    
+    // Ensure frontPage has safe defaults
+    if (!reportJson.frontPage) reportJson.frontPage = {};
+    if (!reportJson.frontPage.logos) reportJson.frontPage.logos = [];
+    if (!reportJson.frontPage.eventDetails) reportJson.frontPage.eventDetails = [];
+
     const data = {
-      report: report.toJSON(),
-      sections: sections.map((s) => ({
-        ...s.toJSON(),
-        images: (s as any).images || [],
-        imageCount: ((s as any).images || []).length,
-      })),
-      budgets: budgets.map((b) => b.toJSON()),
+      report: reportJson,
+      sections: sections.map((s) => {
+        const sJson = JSON.parse(JSON.stringify(s.toJSON()));
+        sJson.images = ((s as any).images || []).map((img: any) =>
+          JSON.parse(JSON.stringify(img.toJSON ? img.toJSON() : img))
+        );
+        sJson.imageCount = sJson.images.length;
+        return sJson;
+      }),
+      budgets: budgets.map((b) => JSON.parse(JSON.stringify(b.toJSON()))),
       budgetTotal: budgets.reduce((sum, b) => sum + b.totalCost, 0),
       generatedAt: new Date().toLocaleDateString('en-IN', {
         year: 'numeric', month: 'long', day: 'numeric',
       }),
     };
+
+    console.log('[PDF] Template data:', JSON.stringify({
+      title: data.report.frontPage?.eventTitle,
+      logos: data.report.frontPage?.logos?.length,
+      details: data.report.frontPage?.eventDetails?.length,
+      sections: data.sections.length,
+      budgets: data.budgets.length,
+    }));
 
     // Get HTML template
     let htmlTemplate: string;
@@ -83,6 +125,7 @@ class PdfService {
       htmlTemplate = await fs.readFile(templatePath, 'utf-8');
     }
 
+    console.log('[PDF] Using template, compiling...');
 
     // Compile and render
     const compiled = Handlebars.compile(htmlTemplate);
@@ -113,7 +156,7 @@ class PdfService {
     const base64Pdf = Buffer.from(pdfBuffer).toString('base64');
     const result = await cloudinary.uploader.upload(
       `data:application/pdf;base64,${base64Pdf}`,
-      { folder: 'event-reports/pdfs', resource_type: 'raw', public_id: `report-${reportId}` }
+      { folder: 'event-reports/pdfs', resource_type: 'raw', public_id: `report-${reportId}.pdf` }
     );
 
     // Save URL to report

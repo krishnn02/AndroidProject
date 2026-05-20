@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Linking from 'expo-linking';
 import { reportApi } from '../../src/services';
+import { useReportStore } from '../../src/stores/reportStore';
 import { Card, Button } from '../../src/components/ui';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../src/theme';
 
@@ -9,6 +11,8 @@ export default function AdminReportsScreen() {
   const [reports, setReports] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('ALL'); // ALL, SUBMITTED, APPROVED, REJECTED
+  
+  const { approveReport, rejectReport, generatePdf } = useReportStore();
 
   const loadReports = async () => {
     setIsLoading(true);
@@ -25,6 +29,61 @@ export default function AdminReportsScreen() {
   useEffect(() => {
     loadReports();
   }, []);
+
+  const handleApprove = async (id: string) => {
+    Alert.alert('Approve Report', 'Are you sure you want to approve this report?', [
+      { text: 'Cancel', style: 'cancel' },
+      { 
+        text: 'Approve', 
+        style: 'default',
+        onPress: async () => {
+          try {
+            await approveReport(id);
+            Alert.alert('Success', 'Report approved successfully');
+            loadReports();
+          } catch (e: any) {
+            Alert.alert('Error', e.message || 'Failed to approve');
+          }
+        }
+      }
+    ]);
+  };
+
+  const handleReject = async (id: string) => {
+    Alert.prompt('Reject Report', 'Please enter a reason for rejection:', [
+      { text: 'Cancel', style: 'cancel' },
+      { 
+        text: 'Reject', 
+        style: 'destructive',
+        onPress: async (note) => {
+          try {
+            await rejectReport(id, note || 'No reason provided');
+            Alert.alert('Success', 'Report rejected successfully');
+            loadReports();
+          } catch (e: any) {
+            Alert.alert('Error', e.message || 'Failed to reject');
+          }
+        }
+      }
+    ]);
+  };
+
+  const handleViewPdf = async (report: any) => {
+    try {
+      let url = report.pdfUrl;
+      if (!url) {
+        // Only generate if no PDF exists yet
+        url = await generatePdf(report._id);
+      }
+      if (url) {
+        Linking.openURL(url);
+      } else {
+        Alert.alert('No PDF', 'PDF has not been generated for this report yet.');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to open PDF');
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -79,11 +138,11 @@ export default function AdminReportsScreen() {
             </View>
 
             <View style={styles.actionsRow}>
-              <Button variant="outline" size="sm" title="View PDF" onPress={() => {}} style={styles.actionBtn} icon={<Ionicons name="document" size={16} color={colors.primary} />} />
+              <Button variant="outline" size="sm" title="View PDF" onPress={() => handleViewPdf(report)} style={styles.actionBtn} icon={<Ionicons name="document" size={16} color={colors.primary} />} />
               {report.status === 'SUBMITTED' && (
                 <>
-                  <Button variant="outline" size="sm" title="Reject" onPress={() => {}} style={[styles.actionBtn, { borderColor: colors.error }]} />
-                  <Button variant="primary" size="sm" title="Approve" onPress={() => {}} style={[styles.actionBtn, { backgroundColor: colors.success }]} />
+                  <Button variant="outline" size="sm" title="Reject" onPress={() => handleReject(report._id)} style={[styles.actionBtn, { borderColor: colors.error }]} />
+                  <Button variant="primary" size="sm" title="Approve" onPress={() => handleApprove(report._id)} style={[styles.actionBtn, { backgroundColor: colors.success }]} />
                 </>
               )}
             </View>

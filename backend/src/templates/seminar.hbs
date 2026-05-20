@@ -4,15 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;400;700;900&family=Source+Sans+3:wght@300;400;600;700&display=swap');
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     font-family: 'Source Sans 3', -apple-system, sans-serif;
-    color: #1e293b;
-    line-height: 1.8;
+    color: #1a1a1a;
+    line-height: 1.7;
     font-size: 11pt;
+    background: white;
   }
 
   /* ===== FRONT PAGE ===== */
@@ -22,197 +23,273 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    padding: 50px 60px;
     text-align: center;
-    background: linear-gradient(170deg, #fffbeb 0%, #fef3c7 30%, #f5f3ff 60%, #faf5ff 100%);
-    padding: 40px 50px;
-    position: relative;
   }
 
-  .front-page::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 6px;
-    background: linear-gradient(90deg, #1e3a5f, #b8860b, #1e3a5f);
+  /* Top row logos */
+  .logo-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+    margin-bottom: 20px;
+    width: 100%;
   }
 
-  .front-page::after {
-    content: '';
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, #b8860b, transparent);
+  .logo-top-row img {
+    object-fit: contain;
   }
 
-  .logo-row {
-    display: flex; align-items: center; justify-content: center;
-    gap: 28px; margin-bottom: 30px;
+  /* Main event logo — last logo */
+  .main-event-logo {
+    text-align: center;
+    margin-bottom: 16px;
   }
 
-  .logo-row img {
-    width: 72px; height: 72px; object-fit: contain; border-radius: 4px;
-    box-shadow: 0 4px 16px rgba(30,58,95,0.1);
-    border: 1px solid rgba(184,134,11,0.2);
+  .main-event-logo img {
+    max-width: 240px;
+    max-height: 160px;
+    object-fit: contain;
   }
 
   .institution-name {
-    font-size: 20pt; font-weight: 800; color: #1e3a5f;
-    letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px;
-    font-family: 'Playfair Display', serif;
+    font-family: 'Merriweather', serif;
+    font-size: 16pt;
+    font-weight: 900;
+    color: #c0392b;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
   }
 
   .department-name {
-    font-size: 13pt; font-weight: 600; color: #b8860b; margin-bottom: 30px;
-    letter-spacing: 1px;
+    font-size: 12pt;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 8px;
   }
 
-  .hero-banner {
-    width: 80%; max-height: 240px; object-fit: cover; border-radius: 4px;
-    margin-bottom: 30px;
-    box-shadow: 0 8px 32px rgba(30,58,95,0.12);
-    border: 2px solid rgba(184,134,11,0.15);
+  .report-label {
+    font-size: 11pt;
+    color: #555;
+    margin-bottom: 6px;
   }
 
   .event-title {
-    font-size: 28pt; font-weight: 700; color: #1e3a5f;
-    margin-bottom: 8px; line-height: 1.2;
-    font-family: 'Playfair Display', serif;
+    font-family: 'Merriweather', serif;
+    font-size: 18pt;
+    font-weight: 900;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+    line-height: 1.3;
   }
 
   .event-subtitle {
-    font-size: 14pt; font-weight: 400; color: #64748b; margin-bottom: 24px;
+    font-size: 12pt;
+    color: #555;
+    margin-bottom: 24px;
+  }
+
+  /* Event details table — formal bordered style like report1 */
+  .details-table {
+    width: 90%;
+    border-collapse: collapse;
+    margin: 20px auto;
+    border: 1px solid #333;
+  }
+
+  .details-table td {
+    padding: 8px 14px;
+    font-size: 10pt;
+    border: 1px solid #333;
+    vertical-align: top;
+  }
+
+  .detail-key {
+    font-weight: 700;
+    color: #c0392b;
+    width: 35%;
+  }
+
+  .detail-value {
+    color: #1a1a1a;
+  }
+
+  /* ===== CONTENT SECTIONS ===== */
+  .content-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin: 16px 30px;
+    page-break-inside: avoid;
+  }
+
+  .section-heading {
+    font-family: 'Merriweather', serif;
+    font-size: 14pt;
+    font-weight: 700;
+    color: #c0392b;
+    margin-bottom: 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #f0f0f0;
+  }
+
+  .section-content p {
+    text-align: justify;
+    margin-bottom: 10px;
+    color: #333;
+    font-size: 10.5pt;
+  }
+
+  .section-content ul {
+    margin-left: 24px;
+    margin-bottom: 12px;
+  }
+
+  .section-content ul li {
+    margin-bottom: 6px;
+    color: #333;
+  }
+
+  .section-content ul li::marker {
+    color: #c0392b;
+  }
+
+  /* ===== IMAGE RECTANGLES ===== */
+  .image-rectangle {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 8px;
+    margin: 12px 30px;
+    text-align: center;
+    page-break-inside: avoid;
+  }
+
+  .image-rectangle img {
+    width: 100%;
+    max-height: 400px;
+    object-fit: cover;
+    border-radius: 4px;
+  }
+
+  .img-caption {
+    text-align: center;
+    font-size: 8pt;
+    color: #999;
+    margin-top: 4px;
     font-style: italic;
   }
 
-  .event-meta {
-    display: flex; justify-content: center; gap: 28px; margin-bottom: 28px; flex-wrap: wrap;
-  }
-
-  .meta-item {
-    background: white; padding: 12px 24px; border-radius: 2px;
-    box-shadow: 0 1px 6px rgba(0,0,0,0.04); font-size: 10pt;
-    border-bottom: 2px solid #b8860b;
-  }
-
-  .meta-item strong { color: #b8860b; display: block; font-size: 7pt; text-transform: uppercase; letter-spacing: 1.5px; }
-
-  .coordinators-section { margin-top: 24px; width: 80%; }
-
-  .coordinators-section h3 {
-    font-size: 10pt; text-transform: uppercase; letter-spacing: 2px; color: #1e3a5f; margin-bottom: 12px;
-    font-family: 'Playfair Display', serif;
-  }
-
-  .coord-grid { display: flex; justify-content: center; gap: 18px; flex-wrap: wrap; }
-
-  .coord-item {
-    background: white; padding: 10px 20px; border-radius: 2px;
-    font-size: 9pt; box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-    border-left: 2px solid #b8860b;
-  }
-
-  .coord-item .label { font-size: 7pt; color: #b8860b; text-transform: uppercase; letter-spacing: 1px; }
-  .coord-item .name { font-weight: 600; color: #1e3a5f; }
-
-  /* ===== CONTENT PAGES ===== */
-  .section { margin-bottom: 30px; page-break-inside: avoid; }
-
-  .section-heading {
-    font-size: 17pt; font-weight: 700; color: #1e3a5f;
-    border-bottom: 2px solid #b8860b; padding-bottom: 6px;
-    margin-bottom: 16px;
-    font-family: 'Playfair Display', serif;
-  }
-
-  .section-content p { text-align: justify; margin-bottom: 10px; color: #334155; }
-  .section-content ul { margin-left: 20px; margin-bottom: 12px; }
-  .section-content ul li { margin-bottom: 6px; color: #334155; }
-  .section-content ul li::marker { color: #b8860b; }
-
-  /* ===== IMAGE LAYOUTS ===== */
+  /* ===== IMAGE GRID LAYOUTS (in sections) ===== */
   .image-container { margin: 16px 0; }
   .img-full { text-align: center; }
-  .img-full img { width: 100%; max-height: 400px; object-fit: cover; border-radius: 4px; border: 1px solid #e2e8f0; }
-  .img-side-by-side { display: flex; gap: 14px; }
-  .img-side-by-side img { flex: 1; width: 48%; height: 240px; object-fit: cover; border-radius: 4px; border: 1px solid #e2e8f0; }
-  .img-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(45%, 1fr)); gap: 14px; }
-  .img-grid img { width: 100%; height: 200px; object-fit: cover; border-radius: 4px; border: 1px solid #e2e8f0; }
-
-  .frame-circle img { border-radius: 50%; aspect-ratio: 1; }
-  .frame-oval img { border-radius: 50%; }
-  .frame-rounded img { border-radius: 8px; }
-
-  .img-caption { text-align: center; font-size: 8pt; color: #94a3b8; margin-top: 4px; font-style: italic; }
+  .img-full img { width: 100%; max-height: 400px; object-fit: cover; border-radius: 4px; }
+  .img-side-by-side { display: flex; gap: 12px; }
+  .img-side-by-side img { flex: 1; width: 48%; height: 240px; object-fit: cover; border-radius: 4px; }
+  .img-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(45%, 1fr)); gap: 12px; }
+  .img-grid img { width: 100%; height: 200px; object-fit: cover; border-radius: 4px; }
 
   /* ===== BUDGET TABLE ===== */
   .budget-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 10pt; }
   .budget-table th {
-    background: #1e3a5f;
-    color: white; padding: 11px 14px; text-align: left; font-weight: 600;
-    font-size: 9pt; text-transform: uppercase; letter-spacing: 1px;
+    background: #c0392b; color: white; padding: 10px 14px;
+    text-align: left; font-weight: 600; font-size: 9pt;
+    text-transform: uppercase; letter-spacing: 0.5px;
   }
-  .budget-table td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; }
-  .budget-table tr:nth-child(even) { background: #fafaf5; }
-  .budget-total { font-weight: 700; background: #fef3c7 !important; color: #92400e; }
+  .budget-table td { padding: 9px 14px; border-bottom: 1px solid #eee; }
+  .budget-table tr:nth-child(even) { background: #fafafa; }
+  .budget-total { font-weight: 700; background: #f5f5f5 !important; color: #c0392b; }
 
   /* ===== GALLERY ===== */
-  .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0; }
-  .gallery-grid img { width: 100%; height: 180px; object-fit: cover; border-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border: 1px solid #e2e8f0; }
+  .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+  .gallery-grid img { width: 100%; height: 180px; object-fit: cover; border-radius: 4px; }
+
+  /* ===== FOOTER ===== */
+  .report-footer {
+    text-align: left;
+    margin: 30px 30px;
+    padding-top: 12px;
+    border-top: 1px solid #ddd;
+    font-size: 10pt;
+    color: #555;
+  }
 
   @media print {
-    .section { page-break-inside: avoid; }
+    .content-card { page-break-inside: avoid; }
     .front-page { page-break-after: always; }
   }
 </style>
 </head>
 <body>
 
+  <!-- FRONT PAGE -->
   <div class="front-page">
-    <div class="logo-row">
-      {{#if report.frontPage.collegeLogo}}<img src="{{report.frontPage.collegeLogo}}" alt="College">{{/if}}
-      {{#if report.frontPage.departmentLogo}}<img src="{{report.frontPage.departmentLogo}}" alt="Department">{{/if}}
-      {{#if report.frontPage.eventLogo}}<img src="{{report.frontPage.eventLogo}}" alt="Event">{{/if}}
-    </div>
 
-    <div class="institution-name">{{report.frontPage.institutionName}}</div>
-    <div class="department-name">{{report.frontPage.departmentName}}</div>
-
-    {{#if report.frontPage.heroBanner}}<img src="{{report.frontPage.heroBanner}}" class="hero-banner" alt="Event Banner">{{/if}}
-
-    <div class="event-title">{{report.frontPage.eventTitle}}</div>
-    {{#if report.frontPage.eventSubtitle}}<div class="event-subtitle">{{report.frontPage.eventSubtitle}}</div>{{/if}}
-
-    <div class="event-meta">
-      {{#if report.frontPage.venueDate}}<div class="meta-item"><strong>Date</strong>{{report.frontPage.venueDate}}</div>{{/if}}
-      {{#if report.event.venue}}<div class="meta-item"><strong>Venue</strong>{{report.event.venue}}</div>{{/if}}
-      {{#if report.event.department}}<div class="meta-item"><strong>Department</strong>{{report.event.department}}</div>{{/if}}
-    </div>
-
-    <div class="coordinators-section">
-      <h3>Organized By</h3>
-      <div class="coord-grid">
-        {{#if report.event.convener}}<div class="coord-item"><div class="label">Convener</div><div class="name">{{report.event.convener}}</div></div>{{/if}}
-        {{#if report.event.coConvener}}<div class="coord-item"><div class="label">Co-Convener</div><div class="name">{{report.event.coConvener}}</div></div>{{/if}}
-        {{#if report.event.facultyCoordinator}}<div class="coord-item"><div class="label">Faculty Coordinator</div><div class="name">{{report.event.facultyCoordinator}}</div></div>{{/if}}
-        {{#if report.event.studentCoordinator}}<div class="coord-item"><div class="label">Student Coordinator</div><div class="name">{{report.event.studentCoordinator}}</div></div>{{/if}}
+    <!-- Top row logos (all except the last) -->
+    {{#if report.frontPage.logos.length}}
+      <div class="logo-top-row">
+        {{#each report.frontPage.logos}}
+          {{#unless @last}}
+            <img src="{{this}}" alt="Logo" style="width: {{logoSize ../report.frontPage.logos.length}}px; height: {{logoSize ../report.frontPage.logos.length}}px;">
+          {{/unless}}
+        {{/each}}
       </div>
-    </div>
+    {{/if}}
+
+    {{#if report.frontPage.institutionName}}
+      <div class="institution-name">{{report.frontPage.institutionName}}</div>
+    {{/if}}
+    {{#if report.frontPage.departmentName}}
+      <div class="department-name">{{report.frontPage.departmentName}}</div>
+    {{/if}}
+
+    <div class="report-label">Activity Report of</div>
+
+    <!-- Main event logo (last one) — centered and larger -->
+    {{#if report.frontPage.logos.length}}
+      <div class="main-event-logo">
+        <img src="{{lastLogo report.frontPage.logos}}" alt="Event Banner">
+      </div>
+    {{/if}}
+
+    <!-- Title -->
+    <div class="event-title">{{report.frontPage.eventTitle}}</div>
+    {{#if report.frontPage.eventSubtitle}}
+      <div class="event-subtitle">{{report.frontPage.eventSubtitle}}</div>
+    {{/if}}
+
+    <!-- Event Details Table — bordered like report1.pdf -->
+    {{#if report.frontPage.eventDetails.length}}
+      <table class="details-table">
+        {{#each report.frontPage.eventDetails}}
+          <tr>
+            <td class="detail-key">{{this.key}}</td>
+            <td class="detail-value">{{this.value}}</td>
+          </tr>
+        {{/each}}
+      </table>
+    {{/if}}
   </div>
 
+  <!-- CONTENT SECTIONS (each in its own curved-edge card) -->
   {{#each sections}}
     {{#unless (eq this.type "BUDGET")}}
       {{#unless (eq this.type "GALLERY")}}
-        <div class="section">
+        <div class="content-card">
           <h2 class="section-heading">{{this.heading}}</h2>
           <div class="section-content">
             {{#each this.content.paragraphs}}<p>{{this}}</p>{{/each}}
-            {{#if this.content.bullets.length}}<ul>{{#each this.content.bullets}}<li>{{this}}</li>{{/each}}</ul>{{/if}}
+            {{#if this.content.bullets.length}}
+              <ul>{{#each this.content.bullets}}<li>{{this}}</li>{{/each}}</ul>
+            {{/if}}
             {{#if this.content.richText}}{{{this.content.richText}}}{{/if}}
           </div>
           {{#if this.images.length}}
-            <div class="image-container {{imageGridClass this.imageCount}} frame-{{this.imageFrame}}">
-              {{#each this.images}}<div><img src="{{this.url}}" alt="{{this.caption}}">{{#if this.caption}}<div class="img-caption">{{this.caption}}</div>{{/if}}</div>{{/each}}
+            <div class="image-container {{imageGridClass this.imageCount}}">
+              {{#each this.images}}
+                <div><img src="{{this.url}}" alt="{{this.caption}}">{{#if this.caption}}<div class="img-caption">{{this.caption}}</div>{{/if}}</div>
+              {{/each}}
             </div>
           {{/if}}
         </div>
@@ -220,30 +297,40 @@
     {{/unless}}
   {{/each}}
 
+  <!-- GALLERY SECTIONS — images in individual rectangles -->
   {{#each sections}}
     {{#if (eq this.type "GALLERY")}}
-      <div class="section">
+      <div class="content-card">
         <h2 class="section-heading">{{this.heading}}</h2>
-        <div class="gallery-grid">{{#each this.images}}<img src="{{this.url}}" alt="{{this.caption}}">{{/each}}</div>
       </div>
+      {{#each this.images}}
+        <div class="image-rectangle">
+          <img src="{{this.url}}" alt="{{this.caption}}">
+          {{#if this.caption}}<div class="img-caption">{{this.caption}}</div>{{/if}}
+        </div>
+      {{/each}}
     {{/if}}
   {{/each}}
 
+  <!-- BUDGET SECTION -->
   {{#if budgets.length}}
-    <div class="section">
+    <div class="content-card">
       <h2 class="section-heading">Budget Summary</h2>
       <table class="budget-table">
         <thead><tr><th>#</th><th>Item</th><th>Category</th><th>Qty</th><th>Unit Cost</th><th>Total</th></tr></thead>
         <tbody>
-          {{#each budgets}}<tr><td>{{@index}}</td><td>{{this.item}}</td><td>{{this.category}}</td><td>{{this.quantity}}</td><td>{{formatCurrency this.unitCost}}</td><td>{{formatCurrency this.totalCost}}</td></tr>{{/each}}
+          {{#each budgets}}
+            <tr><td>{{@index}}</td><td>{{this.item}}</td><td>{{this.category}}</td><td>{{this.quantity}}</td><td>{{formatCurrency this.unitCost}}</td><td>{{formatCurrency this.totalCost}}</td></tr>
+          {{/each}}
           <tr class="budget-total"><td colspan="5" style="text-align:right;"><strong>Grand Total</strong></td><td><strong>{{formatCurrency budgetTotal}}</strong></td></tr>
         </tbody>
       </table>
     </div>
   {{/if}}
 
-  <div style="text-align:center;margin-top:40px;padding:20px;border-top:2px solid #b8860b;font-size:8pt;color:#94a3b8;">
-    Report generated on {{generatedAt}} | Smart Event Report System
+  <div class="report-footer">
+    Report Prepared By: {{report.createdBy.name}}<br>
+    <span style="font-size:8pt;color:#999;">Generated on {{generatedAt}} | Smart Event Report System</span>
   </div>
 
 </body>
