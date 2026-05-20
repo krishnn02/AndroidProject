@@ -21,7 +21,9 @@ const app = express();
 // Security
 app.use(helmet());
 app.use(cors({
-  origin: [config.cors.frontendUrl, config.cors.mobileUrl],
+  origin: config.env === 'development' 
+    ? (origin: any, callback: any) => callback(null, true)
+    : [config.cors.frontendUrl, config.cors.mobileUrl],
   credentials: true,
 }));
 

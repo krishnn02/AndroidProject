@@ -7,8 +7,8 @@ import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../src/t
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('rahul@institution.edu');
-  const [password, setPassword] = useState('User@123');
+  const [email, setEmail] = useState('admin@institution.edu');
+  const [password, setPassword] = useState('Admin@123');
   const { login, isLoading, error, clearError } = useAuthStore();
   const router = useRouter();
 

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Inter:wght@300;400;600;700;800&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: #e2e8f0;
+    line-height: 1.7;
+    font-size: 11pt;
+    background: #0f172a;
+  }
+
+  /* ===== FRONT PAGE ===== */
+  .front-page {
+    page-break-after: always;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: linear-gradient(160deg, #0f172a 0%, #1e293b 40%, #0f172a 70%, #020617 100%);
+    padding: 40px 50px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .front-page::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -100px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(56,189,248,0.08) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+
+  .logo-top-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 24px; margin-bottom: 24px; width: 100%;
+  }
+
+  .logo-top-row img { object-fit: contain; border-radius: 8px; border: 1px solid #334155; background: #1e293b; padding: 6px; }
+
+  .main-event-logo { text-align: center; margin-bottom: 20px; }
+  .main-event-logo img { max-width: 260px; max-height: 180px; object-fit: contain; border-radius: 12px; border: 1px solid #334155; }
+
+  .institution-name { font-family: 'JetBrains Mono', monospace; font-size: 14pt; font-weight: 700; color: #38bdf8; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 4px; }
+  .department-name { font-size: 11pt; font-weight: 500; color: #94a3b8; margin-bottom: 24px; }
+
+  .event-title { font-size: 22pt; font-weight: 800; color: #f1f5f9; margin-bottom: 6px; line-height: 1.2; }
+  .event-subtitle { font-size: 13pt; font-weight: 400; color: #94a3b8; margin-bottom: 24px; }
+
+  .details-table {
+    width: 85%; border-collapse: collapse; margin: 20px auto;
+    background: #1e293b; border-radius: 12px; overflow: hidden;
+    border: 1px solid #334155;
+  }
+  .details-table td { padding: 10px 18px; font-size: 10pt; border-bottom: 1px solid #334155; }
+  .details-table tr:last-child td { border-bottom: none; }
+  .detail-key { font-family: 'JetBrains Mono', monospace; font-weight: 600; color: #38bdf8; width: 35%; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.5px; }
+  .detail-value { color: #cbd5e1; }
+
+  /* ===== CONTENT ===== */
+  .content-card {
+    background: #1e293b; border: 1px solid #334155; border-radius: 14px;
+    padding: 22px 26px; margin: 14px 24px;
+    page-break-inside: avoid;
+  }
+
+  .section-heading { font-family: 'JetBrains Mono', monospace; font-size: 13pt; font-weight: 700; color: #38bdf8; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #334155; }
+  .section-content p { text-align: justify; margin-bottom: 10px; color: #cbd5e1; }
+  .section-content ul { margin-left: 20px; margin-bottom: 12px; }
+  .section-content ul li { margin-bottom: 6px; color: #cbd5e1; }
+  .section-content ul li::marker { color: #38bdf8; }
+
+  .image-rectangle { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 10px; margin: 12px 24px; text-align: center; page-break-inside: avoid; }
+  .image-rectangle img { width: 100%; max-height: 400px; object-fit: cover; border-radius: 6px; }
+  .img-caption { text-align: center; font-size: 8pt; color: #64748b; margin-top: 4px; font-style: italic; }
+
+  .image-container { margin: 16px 0; }
+  .img-full { text-align: center; }
+  .img-full img { width: 100%; max-height: 400px; object-fit: cover; border-radius: 8px; }
+  .img-side-by-side { display: flex; gap: 12px; }
+  .img-side-by-side img { flex: 1; width: 48%; height: 240px; object-fit: cover; border-radius: 8px; }
+  .img-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(45%, 1fr)); gap: 12px; }
+  .img-grid img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; }
+
+  .budget-table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 10pt; }
+  .budget-table th { background: #0ea5e9; color: #0f172a; padding: 10px 14px; text-align: left; font-weight: 700; font-size: 9pt; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; }
+  .budget-table td { padding: 9px 14px; border-bottom: 1px solid #334155; color: #cbd5e1; }
+  .budget-table tr:nth-child(even) { background: #0f172a; }
+  .budget-total { font-weight: 700; background: #1e293b !important; color: #38bdf8; }
+
+  .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+  .gallery-grid img { width: 100%; height: 180px; object-fit: cover; border-radius: 8px; border: 1px solid #334155; }
+
+  @media print { .content-card { page-break-inside: avoid; } .front-page { page-break-after: always; } }
+</style>
+</head>
+<body>
+
+  <div class="front-page">
+    {{#if report.frontPage.logos.length}}
+      <div class="logo-top-row">
+        {{#each report.frontPage.logos}}
+          {{#unless @last}}
+            <img src="{{this}}" alt="Logo" style="width: {{logoSize ../report.frontPage.logos.length}}px; height: {{logoSize ../report.frontPage.logos.length}}px;">
+          {{/unless}}
+        {{/each}}
+      </div>
+    {{/if}}
+
+    {{#if report.frontPage.institutionName}}<div class="institution-name">{{report.frontPage.institutionName}}</div>{{/if}}
+    {{#if report.frontPage.departmentName}}<div class="department-name">{{report.frontPage.departmentName}}</div>{{/if}}
+
+    {{#if report.frontPage.logos.length}}
+      <div class="main-event-logo"><img src="{{lastLogo report.frontPage.logos}}" alt="Event Logo"></div>
+    {{/if}}
+
+    <div class="event-title">{{report.frontPage.eventTitle}}</div>
+    {{#if report.frontPage.eventSubtitle}}<div class="event-subtitle">{{report.frontPage.eventSubtitle}}</div>{{/if}}
+
+    {{#if report.frontPage.eventDetails.length}}
+      <table class="details-table">
+        {{#each report.frontPage.eventDetails}}<tr><td class="detail-key">{{this.key}}</td><td class="detail-value">{{this.value}}</td></tr>{{/each}}
+      </table>
+    {{/if}}
+  </div>
+
+  {{#each sections}}
+    {{#unless (eq this.type "BUDGET")}}{{#unless (eq this.type "GALLERY")}}
+      <div class="content-card">
+        <h2 class="section-heading">{{this.heading}}</h2>
+        <div class="section-content">
+          {{#each this.content.paragraphs}}<p>{{this}}</p>{{/each}}
+          {{#if this.content.bullets.length}}<ul>{{#each this.content.bullets}}<li>{{this}}</li>{{/each}}</ul>{{/if}}
+          {{#if this.content.richText}}{{{this.content.richText}}}{{/if}}
+        </div>
+        {{#if this.images.length}}
+          <div class="image-container {{imageGridClass this.imageCount}}">
+            {{#each this.images}}<div><img src="{{this.url}}" alt="{{this.caption}}">{{#if this.caption}}<div class="img-caption">{{this.caption}}</div>{{/if}}</div>{{/each}}
+          </div>
+        {{/if}}
+      </div>
+    {{/unless}}{{/unless}}
+  {{/each}}
+
+  {{#each sections}}
+    {{#if (eq this.type "GALLERY")}}
+      <div class="content-card"><h2 class="section-heading">{{this.heading}}</h2></div>
+      {{#each this.images}}<div class="image-rectangle"><img src="{{this.url}}" alt="{{this.caption}}">{{#if this.caption}}<div class="img-caption">{{this.caption}}</div>{{/if}}</div>{{/each}}
+    {{/if}}
+  {{/each}}
+
+  {{#if budgets.length}}
+    <div class="content-card">
+      <h2 class="section-heading">Budget Summary</h2>
+      <table class="budget-table">
+        <thead><tr><th>#</th><th>Item</th><th>Category</th><th>Qty</th><th>Unit Cost</th><th>Total</th></tr></thead>
+        <tbody>
+          {{#each budgets}}<tr><td>{{@index}}</td><td>{{this.item}}</td><td>{{this.category}}</td><td>{{this.quantity}}</td><td>{{formatCurrency this.unitCost}}</td><td>{{formatCurrency this.totalCost}}</td></tr>{{/each}}
+          <tr class="budget-total"><td colspan="5" style="text-align:right;"><strong>Grand Total</strong></td><td><strong>{{formatCurrency budgetTotal}}</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+  {{/if}}
+
+  <div style="text-align:center;margin-top:40px;padding:20px;border-top:1px solid #334155;font-size:8pt;color:#475569;">
+    Report generated on {{generatedAt}} | Smart Event Report System
+  </div>
+
+</body>
+</html>

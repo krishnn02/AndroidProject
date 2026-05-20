@@ -8,16 +8,13 @@ export enum ReportStatus {
 }
 
 export interface IFrontPage {
-  collegeLogo?: string;
-  departmentLogo?: string;
-  eventLogo?: string;
+  logos?: string[];
   heroBanner?: string;
   institutionName?: string;
   departmentName?: string;
   eventTitle?: string;
   eventSubtitle?: string;
-  venueDate?: string;
-  coordinators?: Record<string, string>;
+  eventDetails?: Array<{ key: string; value: string }>;
   qrCode?: string;
   socialLinks?: Record<string, string>;
 }
@@ -42,16 +39,16 @@ export interface IReport extends Document {
 
 const frontPageSchema = new Schema<IFrontPage>(
   {
-    collegeLogo: String,
-    departmentLogo: String,
-    eventLogo: String,
+    logos: [{ type: String }],
     heroBanner: String,
     institutionName: String,
     departmentName: String,
     eventTitle: String,
     eventSubtitle: String,
-    venueDate: String,
-    coordinators: { type: Schema.Types.Mixed, default: {} },
+    eventDetails: [{
+      key: { type: String, required: true },
+      value: { type: String, default: '' },
+    }],
     qrCode: String,
     socialLinks: { type: Schema.Types.Mixed, default: {} },
   },
