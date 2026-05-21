@@ -26,6 +26,10 @@ export default function AdminDashboardScreen() {
   const [recentReports, setRecentReports] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
+
   // Profile Modal State
   const [isProfileVisible, setIsProfileVisible] = useState(false);
   const [profileName, setProfileName] = useState('');
@@ -34,8 +38,14 @@ export default function AdminDashboardScreen() {
   const [profilePassword, setProfilePassword] = useState('');
   const [profileDepartment, setProfileDepartment] = useState('');
   const [profileCollege, setProfileCollege] = useState('');
+  const [avatarColor, setAvatarColor] = useState('#6C3CE0');
   const [isProfileSaving, setIsProfileSaving] = useState(false);
   const [profileError, setProfileError] = useState('');
+  const [profileNameError, setProfileNameError] = useState('');
+  const [profileEmailError, setProfileEmailError] = useState('');
+  const [profilePhoneError, setProfilePhoneError] = useState('');
+  const [profilePasswordError, setProfilePasswordError] = useState('');
+  const [profileDeptError, setProfileDeptError] = useState('');
 
   // Report Modal State
   const [selectedReport, setSelectedReport] = useState<any>(null);
@@ -50,7 +60,7 @@ export default function AdminDashboardScreen() {
     try {
       const [overviewRes, reportsRes] = await Promise.all([
         analyticsApi.getOverview(),
-        reportApi.getAll({ limit: 5 })
+        reportApi.getAll({ limit: 20 })
       ]);
       
       setOverview(overviewRes.data.data);
@@ -74,18 +84,63 @@ export default function AdminDashboardScreen() {
       setProfilePassword('');
       setProfileDepartment(user.department || '');
       setProfileCollege(user.college || '');
+      setAvatarColor(user.avatarColor || '#6C3CE0');
       setProfileError('');
+      setProfileNameError('');
+      setProfileEmailError('');
+      setProfilePhoneError('');
+      setProfilePasswordError('');
+      setProfileDeptError('');
       setIsProfileVisible(true);
     }
   };
 
   const handleSaveProfile = async () => {
-    if (!profileName.trim() || !profileEmail.trim() || !profileDepartment.trim()) {
-      setProfileError('Please fill in Name, Email and Department.');
+    let hasError = false;
+    setProfileNameError('');
+    setProfileEmailError('');
+    setProfilePhoneError('');
+    setProfilePasswordError('');
+    setProfileDeptError('');
+    setProfileError('');
+
+    if (!profileName.trim()) {
+      setProfileNameError('Name is required');
+      hasError = true;
+    } else if (profileName.trim().length < 2) {
+      setProfileNameError('Name must be at least 2 characters');
+      hasError = true;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!profileEmail.trim()) {
+      setProfileEmailError('Email is required');
+      hasError = true;
+    } else if (!emailRegex.test(profileEmail.trim())) {
+      setProfileEmailError('Please enter a valid email address');
+      hasError = true;
+    }
+
+    if (profilePhone.trim() && !/^\d{10}$/.test(profilePhone.trim())) {
+      setProfilePhoneError('Phone must be a 10-digit number');
+      hasError = true;
+    }
+
+    if (profilePassword.trim() && profilePassword.trim().length < 6) {
+      setProfilePasswordError('Password must be at least 6 characters');
+      hasError = true;
+    }
+
+    if (!profileDepartment.trim()) {
+      setProfileDeptError('Department is required');
+      hasError = true;
+    }
+
+    if (hasError) {
       return;
     }
+
     setIsProfileSaving(true);
-    setProfileError('');
     try {
       const payload: any = {
         name: profileName.trim(),
@@ -93,6 +148,7 @@ export default function AdminDashboardScreen() {
         phone: profilePhone.trim(),
         department: profileDepartment.trim(),
         college: profileCollege.trim(),
+        avatarColor,
       };
       if (profilePassword.trim()) {
         payload.password = profilePassword.trim();
@@ -170,6 +226,38 @@ export default function AdminDashboardScreen() {
     }
   };
 
+  // Password strength evaluation helper
+  const getPasswordStrength = (password: string) => {
+    if (!password) return { text: '', color: colors.textMuted, width: 0 };
+    if (password.length < 6) return { text: 'Weak (min 6 characters)', color: colors.error, width: 33 };
+    const hasNumberOrSymbol = /[\d!@#$%^&*(),.?":{}|<>]/.test(password);
+    if (!hasNumberOrSymbol) return { text: 'Medium (add a number or symbol)', color: colors.warning, width: 66 };
+    return { text: 'Strong', color: colors.success, width: 100 };
+  };
+
+  // Gauge statistics
+  const approvedCount = overview?.approvedReports || 0;
+  const pendingCount = overview?.pendingReports || 0;
+  const rejectedCount = overview?.rejectedReports || 0;
+  const draftCount = overview?.draftReports || 0;
+  const totalReportsCount = approvedCount + pendingCount + rejectedCount + draftCount;
+
+  const approvedPct = totalReportsCount > 0 ? (approvedCount / totalReportsCount) * 100 : 0;
+  const pendingPct = totalReportsCount > 0 ? (pendingCount / totalReportsCount) * 100 : 0;
+  const rejectedPct = totalReportsCount > 0 ? (rejectedCount / totalReportsCount) * 100 : 0;
+  const draftPct = totalReportsCount > 0 ? (draftCount / totalReportsCount) * 100 : 0;
+
+  // Filter logic
+  const filteredReports = recentReports.filter((report) => {
+    const matchesSearch = 
+      report.event?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      report.createdBy?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      report.createdBy?.department?.toLowerCase().includes(searchQuery.toLowerCase());
+      
+    const matchesStatus = selectedStatus === 'ALL' || report.status === selectedStatus;
+    return matchesSearch && matchesStatus;
+  });
+
   return (
     <View style={styles.container}>
       <ScrollView 
@@ -181,8 +269,16 @@ export default function AdminDashboardScreen() {
             <Text style={styles.dept}>Welcome back, {user?.name.split(' ')[0]}</Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity onPress={openProfile} style={styles.profileIconBtn}>
-              <Ionicons name="person-circle-outline" size={32} color={colors.primaryLight} />
+            <TouchableOpacity 
+              onPress={openProfile} 
+              style={[
+                styles.avatarBadge, 
+                { backgroundColor: user?.avatarColor || colors.primary }
+              ]}
+            >
+              <Text style={styles.avatarInitial}>
+                {user?.name ? user.name[0].toUpperCase() : 'A'}
+              </Text>
             </TouchableOpacity>
             <Button variant="ghost" icon={<Ionicons name="log-out-outline" size={24} color={colors.error} />} onPress={logout} title="" />
           </View>
@@ -193,37 +289,127 @@ export default function AdminDashboardScreen() {
             title="Total Users" 
             value={overview?.totalUsers || 0} 
             icon={<Ionicons name="people" size={24} color={colors.primary} />} 
-            style={styles.statCard}
+            style={[styles.statCard, { borderColor: colors.primary + '30', borderWidth: 1.5 }]}
           />
           <StatCard 
             title="Active Events" 
             value={overview?.activeEvents || 0} 
             icon={<Ionicons name="calendar" size={24} color={colors.success} />} 
-            style={styles.statCard}
+            style={[styles.statCard, { borderColor: colors.success + '30', borderWidth: 1.5 }]}
             color={colors.success}
           />
           <StatCard 
             title="Pending Reports" 
             value={overview?.pendingReports || 0} 
             icon={<Ionicons name="time" size={24} color={colors.warning} />} 
-            style={styles.statCard}
+            style={[styles.statCard, { borderColor: colors.warning + '30', borderWidth: 1.5 }]}
             color={colors.warning}
           />
           <StatCard 
             title="Approved" 
             value={overview?.approvedReports || 0} 
             icon={<Ionicons name="checkmark-circle" size={24} color={colors.secondary} />} 
-            style={styles.statCard}
+            style={[styles.statCard, { borderColor: colors.secondary + '30', borderWidth: 1.5 }]}
             color={colors.secondary}
           />
         </View>
+
+        {/* Report Distribution Segment Gauge */}
+        {overview && (
+          <Card style={styles.gaugeCard}>
+            <Text style={styles.gaugeTitle}>Report Distribution Overview</Text>
+            
+            <View style={styles.gaugeBarContainer}>
+              {approvedPct > 0 && (
+                <View style={[styles.gaugeSegment, { width: `${approvedPct}%`, backgroundColor: colors.success }]} />
+              )}
+              {pendingPct > 0 && (
+                <View style={[styles.gaugeSegment, { width: `${pendingPct}%`, backgroundColor: colors.warning }]} />
+              )}
+              {rejectedPct > 0 && (
+                <View style={[styles.gaugeSegment, { width: `${rejectedPct}%`, backgroundColor: colors.error }]} />
+              )}
+              {draftPct > 0 && (
+                <View style={[styles.gaugeSegment, { width: `${draftPct}%`, backgroundColor: colors.primaryLight }]} />
+              )}
+              {totalReportsCount === 0 && (
+                <View style={[styles.gaugeSegment, { width: '100%', backgroundColor: colors.border }]} />
+              )}
+            </View>
+
+            <View style={styles.gaugeLegend}>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+                <Text style={styles.legendText}>Approved ({approvedCount})</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: colors.warning }]} />
+                <Text style={styles.legendText}>Pending ({pendingCount})</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: colors.error }]} />
+                <Text style={styles.legendText}>Rejected ({rejectedCount})</Text>
+              </View>
+              <View style={styles.legendItem}>
+                <View style={[styles.legendDot, { backgroundColor: colors.primaryLight }]} />
+                <Text style={styles.legendText}>Draft ({draftCount})</Text>
+              </View>
+            </View>
+          </Card>
+        )}
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recent Report Submissions</Text>
           </View>
 
-          {recentReports.map((report) => (
+          {/* Search Input */}
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={18} color={colors.textMuted} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search reports by event, author, dept..."
+              placeholderTextColor={colors.textMuted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCorrect={false}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+                <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Status Filter Chips */}
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            style={styles.filterChipsScroll}
+            contentContainerStyle={styles.filterChipsContainer}
+          >
+            {['ALL', 'SUBMITTED', 'APPROVED', 'REJECTED', 'DRAFT'].map((status) => (
+              <TouchableOpacity
+                key={status}
+                onPress={() => setSelectedStatus(status)}
+                style={[
+                  styles.filterChip,
+                  selectedStatus === status && styles.filterChipActive
+                ]}
+              >
+                <Text 
+                  style={[
+                    styles.filterChipText,
+                    selectedStatus === status && styles.filterChipTextActive
+                  ]}
+                >
+                  {status}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {filteredReports.map((report) => (
             <Card key={report._id} style={styles.reportCard} onPress={() => handleReportClick(report._id)}>
               <View style={styles.reportHeader}>
                 <Text style={styles.eventName} numberOfLines={1}>{report.event?.name || 'Unknown Event'}</Text>
@@ -238,8 +424,8 @@ export default function AdminDashboardScreen() {
             </Card>
           ))}
 
-          {recentReports.length === 0 && !isLoading && (
-            <Text style={styles.emptyText}>No recent reports found.</Text>
+          {filteredReports.length === 0 && !isLoading && (
+            <Text style={styles.emptyText}>No matching reports found.</Text>
           )}
         </View>
       </ScrollView>
@@ -275,44 +461,106 @@ export default function AdminDashboardScreen() {
                   label="Full Name"
                   placeholder="Enter full name"
                   value={profileName}
-                  onChangeText={setProfileName}
+                  onChangeText={(val) => {
+                    setProfileName(val);
+                    if (profileNameError) setProfileNameError('');
+                  }}
                   icon="person-outline"
+                  error={profileNameError}
                 />
                 
                 <Input
                   label="Email Address"
                   placeholder="Enter email address"
                   value={profileEmail}
-                  onChangeText={setProfileEmail}
+                  onChangeText={(val) => {
+                    setProfileEmail(val);
+                    if (profileEmailError) setProfileEmailError('');
+                  }}
                   icon="mail-outline"
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  error={profileEmailError}
                 />
 
                 <Input
                   label="Phone / Mobile"
                   placeholder="Enter phone number"
                   value={profilePhone}
-                  onChangeText={setProfilePhone}
+                  onChangeText={(val) => {
+                    setProfilePhone(val);
+                    if (profilePhoneError) setProfilePhoneError('');
+                  }}
                   icon="call-outline"
                   keyboardType="phone-pad"
+                  error={profilePhoneError}
                 />
+
+                {/* Avatar Color Selector */}
+                <View style={styles.avatarColorSection}>
+                  <Text style={styles.inputLabel}>Choose Profile Avatar Color</Text>
+                  <View style={styles.colorPaletteRow}>
+                    {['#6C3CE0', '#10B981', '#F59E0B', '#EF4444', '#3B82F6'].map((colorOption) => (
+                      <TouchableOpacity
+                        key={colorOption}
+                        onPress={() => setAvatarColor(colorOption)}
+                        style={[
+                          styles.colorOptionCircle,
+                          { backgroundColor: colorOption },
+                          avatarColor === colorOption && styles.colorOptionCircleSelected
+                        ]}
+                      >
+                        {avatarColor === colorOption && (
+                          <Ionicons name="checkmark" size={16} color="#FFF" />
+                        )}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
 
                 <Input
                   label="Password (leave blank to keep unchanged)"
                   placeholder="Enter new password"
                   value={profilePassword}
-                  onChangeText={setProfilePassword}
+                  onChangeText={(val) => {
+                    setProfilePassword(val);
+                    if (profilePasswordError) setProfilePasswordError('');
+                  }}
                   icon="lock-closed-outline"
                   secureTextEntry
+                  error={profilePasswordError}
                 />
+
+                {/* Password Strength Meter */}
+                {profilePassword.length > 0 && (
+                  <View style={styles.strengthMeterContainer}>
+                    <Text style={[styles.strengthText, { color: getPasswordStrength(profilePassword).color }]}>
+                      Password Strength: {getPasswordStrength(profilePassword).text}
+                    </Text>
+                    <View style={styles.strengthTrack}>
+                      <View 
+                        style={[
+                          styles.strengthBar, 
+                          { 
+                            width: `${getPasswordStrength(profilePassword).width}%`, 
+                            backgroundColor: getPasswordStrength(profilePassword).color 
+                          }
+                        ]} 
+                      />
+                    </View>
+                  </View>
+                )}
 
                 <Input
                   label="Department"
                   placeholder="Enter department"
                   value={profileDepartment}
-                  onChangeText={setProfileDepartment}
+                  onChangeText={(val) => {
+                    setProfileDepartment(val);
+                    if (profileDeptError) setProfileDeptError('');
+                  }}
                   icon="business-outline"
+                  error={profileDeptError}
                 />
 
                 <Input
@@ -848,5 +1096,149 @@ const styles = StyleSheet.create({
   rejectionButtons: {
     flexDirection: 'row',
     gap: spacing.sm,
-  }
+  },
+  avatarBadge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.borderLight,
+  },
+  avatarInitial: {
+    color: '#FFF',
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+  },
+  gaugeCard: {
+    marginBottom: spacing.xl,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+  },
+  gaugeTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  gaugeBarContainer: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.bgInput,
+    flexDirection: 'row',
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+  },
+  gaugeSegment: {
+    height: '100%',
+  },
+  gaugeLegend: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
+  },
+  legendText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgInput,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  searchIcon: {
+    marginRight: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.text,
+    fontSize: fontSize.sm,
+    paddingVertical: spacing.sm,
+  },
+  clearSearchBtn: {
+    padding: spacing.xs,
+  },
+  filterChipsScroll: {
+    marginBottom: spacing.md,
+  },
+  filterChipsContainer: {
+    gap: spacing.xs,
+    paddingRight: spacing.md,
+  },
+  filterChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgCard,
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterChipText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.medium,
+  },
+  filterChipTextActive: {
+    color: '#FFF',
+    fontWeight: fontWeight.bold,
+  },
+  avatarColorSection: {
+    marginBottom: spacing.md,
+  },
+  colorPaletteRow: {
+    flexDirection: 'row',
+    marginTop: spacing.xs,
+  },
+  colorOptionCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: spacing.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  colorOptionCircleSelected: {
+    borderColor: '#FFF',
+  },
+  strengthMeterContainer: {
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.xs,
+  },
+  strengthText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.medium,
+    marginBottom: 4,
+  },
+  strengthTrack: {
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.bgInput,
+    overflow: 'hidden',
+  },
+  strengthBar: {
+    height: '100%',
+  },
 });

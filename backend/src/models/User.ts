@@ -16,6 +16,7 @@ export interface IUser extends Document {
   college?: string;
   role: Role;
   fcmToken?: string;
+  avatarColor?: string;
   isActive: boolean;
   refreshToken?: string;
   resetPasswordToken?: string;
@@ -35,6 +36,7 @@ const userSchema = new Schema<IUser>(
     college: { type: String, trim: true },
     role: { type: String, enum: Object.values(Role), default: Role.USER },
     fcmToken: { type: String },
+    avatarColor: { type: String, default: '#6C3CE0' },
     isActive: { type: Boolean, default: true },
     refreshToken: { type: String, select: false },
     resetPasswordToken: { type: String, select: false },

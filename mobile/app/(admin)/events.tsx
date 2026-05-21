@@ -10,7 +10,8 @@ import {
   TouchableOpacity, 
   ActivityIndicator, 
   KeyboardAvoidingView, 
-  Platform 
+  Platform,
+  TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -23,9 +24,24 @@ export default function AdminEventsScreen() {
   const [events, setEvents] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Search & Filter State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
+
+  const filteredEvents = events.filter((event) => {
+    const matchesSearch = 
+      event.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.venue?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.department?.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = selectedStatus === 'ALL' || event.status === selectedStatus;
+    return matchesSearch && matchesStatus;
+  });
+
   // Edit Event Modal State
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editingEvent, setEditingEvent] = useState<any>(null);
+  const [parentEventId, setParentEventId] = useState<string | null>(null);
   const [eventName, setEventName] = useState('');
   const [eventType, setEventType] = useState('CULTURAL');
   const [eventDept, setEventDept] = useState('');
@@ -39,6 +55,11 @@ export default function AdminEventsScreen() {
   const [eventTheme, setEventTheme] = useState('CORPORATE');
   const [isEventSaving, setIsEventSaving] = useState(false);
   const [eventError, setEventError] = useState('');
+  const [eventNameError, setEventNameError] = useState('');
+  const [eventDeptError, setEventDeptError] = useState('');
+  const [eventDateError, setEventDateError] = useState('');
+  const [eventVenueError, setEventVenueError] = useState('');
+  const [eventConvenerError, setEventConvenerError] = useState('');
 
   // Assign Users Modal State
   const [isAssignModalVisible, setIsAssignModalVisible] = useState(false);
@@ -64,12 +85,32 @@ export default function AdminEventsScreen() {
     loadEvents();
   }, []);
 
-  const handleNewEvent = () => {
-    router.push('/(admin)/create-report');
+  const handleNewEvent = (parentId?: string) => {
+    setEditingEvent(null);
+    setParentEventId(parentId || null);
+    setEventName('');
+    setEventType('CULTURAL');
+    setEventDept('');
+    setEventDate('');
+    setEventVenue('');
+    setEventConvener('');
+    setEventCoConvener('');
+    setEventFaculty('');
+    setEventStudent('');
+    setEventStatus('DRAFT');
+    setEventTheme('CORPORATE');
+    setEventError('');
+    setEventNameError('');
+    setEventDeptError('');
+    setEventDateError('');
+    setEventVenueError('');
+    setEventConvenerError('');
+    setIsEditModalVisible(true);
   };
 
   const handleEditEvent = (event: any) => {
     setEditingEvent(event);
+    setParentEventId(event.parentEvent || null);
     setEventName(event.name || '');
     setEventType(event.type || 'CULTURAL');
     setEventDept(event.department || '');
@@ -83,30 +124,67 @@ export default function AdminEventsScreen() {
     setEventStatus(event.status || 'DRAFT');
     setEventTheme(event.themeType || 'CORPORATE');
     setEventError('');
+    setEventNameError('');
+    setEventDeptError('');
+    setEventDateError('');
+    setEventVenueError('');
+    setEventConvenerError('');
     setIsEditModalVisible(true);
   };
 
   const handleSaveEvent = async () => {
-    if (!eventName.trim() || !eventDept.trim() || !eventDate.trim() || !eventVenue.trim() || !eventConvener.trim()) {
-      setEventError('Please fill in all required fields (Name, Dept, Date, Venue, Convener).');
-      return;
+    let hasError = false;
+    setEventNameError('');
+    setEventDeptError('');
+    setEventDateError('');
+    setEventVenueError('');
+    setEventConvenerError('');
+    setEventError('');
+
+    if (!eventName.trim()) {
+      setEventNameError('Event name is required');
+      hasError = true;
     }
-    
-    // validate date format
-    const dateParsed = Date.parse(eventDate);
-    if (isNaN(dateParsed)) {
-      setEventError('Please enter a valid Date in YYYY-MM-DD format.');
+    if (!eventDept.trim()) {
+      setEventDeptError('Department is required');
+      hasError = true;
+    }
+    if (!eventDate.trim()) {
+      setEventDateError('Date is required');
+      hasError = true;
+    } else {
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(eventDate.trim())) {
+        setEventDateError('Date must be in YYYY-MM-DD format');
+        hasError = true;
+      } else {
+        const dateParsed = Date.parse(eventDate.trim());
+        if (isNaN(dateParsed)) {
+          setEventDateError('Please enter a valid Date');
+          hasError = true;
+        }
+      }
+    }
+    if (!eventVenue.trim()) {
+      setEventVenueError('Venue is required');
+      hasError = true;
+    }
+    if (!eventConvener.trim()) {
+      setEventConvenerError('Convener is required');
+      hasError = true;
+    }
+
+    if (hasError) {
       return;
     }
 
     setIsEventSaving(true);
-    setEventError('');
     try {
-      const payload = {
+      const payload: any = {
         name: eventName.trim(),
         type: eventType,
         department: eventDept.trim(),
-        date: new Date(eventDate),
+        date: new Date(eventDate.trim()),
         venue: eventVenue.trim(),
         convener: eventConvener.trim(),
         coConvener: eventCoConvener.trim() || undefined,
@@ -115,12 +193,21 @@ export default function AdminEventsScreen() {
         status: eventStatus,
         themeType: eventTheme,
       };
-      await eventApi.update(editingEvent._id, payload);
+      if (parentEventId) {
+        payload.parentEvent = parentEventId;
+      }
+
+      if (editingEvent) {
+        await eventApi.update(editingEvent._id, payload);
+        Alert.alert('Success', 'Event updated successfully.');
+      } else {
+        await eventApi.create(payload);
+        Alert.alert('Success', 'Event created successfully.');
+      }
       setIsEditModalVisible(false);
-      Alert.alert('Success', 'Event updated successfully.');
       loadEvents();
     } catch (err: any) {
-      setEventError(err.response?.data?.message || 'Failed to update event.');
+      setEventError(err.response?.data?.message || 'Failed to save event.');
     } finally {
       setIsEventSaving(false);
     }
@@ -198,7 +285,53 @@ export default function AdminEventsScreen() {
           <Button size="sm" icon={<Ionicons name="add" size={20} color={colors.text} />} title="New" onPress={handleNewEvent} />
         </View>
 
-        {events.map((event) => (
+        {/* Search Input */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={18} color={colors.textMuted} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search events by name, venue, dept..."
+            placeholderTextColor={colors.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
+              <Ionicons name="close-circle" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Status Filter Chips */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          style={styles.filterChipsScroll}
+          contentContainerStyle={styles.filterChipsContainer}
+        >
+          {['ALL', 'DRAFT', 'ACTIVE', 'COMPLETED', 'CANCELLED'].map((status) => (
+            <TouchableOpacity
+              key={status}
+              onPress={() => setSelectedStatus(status)}
+              style={[
+                styles.filterChip,
+                selectedStatus === status && styles.filterChipActive
+              ]}
+            >
+              <Text 
+                style={[
+                  styles.filterChipText,
+                  selectedStatus === status && styles.filterChipTextActive
+                ]}
+              >
+                {status}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {filteredEvents.map((event) => (
           <Card key={event._id} style={styles.eventCard}>
             <View style={styles.eventHeader}>
               <Text style={styles.eventName} numberOfLines={2}>{event.name}</Text>
@@ -220,14 +353,49 @@ export default function AdminEventsScreen() {
                 <Text style={styles.detailText}>{event.type}</Text>
               </View>
             </View>
+
+            {event.subEvents && event.subEvents.length > 0 && (
+              <View style={styles.subEventsContainer}>
+                <Text style={styles.subEventsTitle}>Sub-events ({event.subEvents.length})</Text>
+                {event.subEvents.map((subEvent: any) => (
+                  <View key={subEvent._id} style={styles.subEventItem}>
+                    <View style={styles.subEventItemMain}>
+                      <Ionicons name="git-commit-outline" size={16} color={colors.primaryLight} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.subEventItemName} numberOfLines={1}>{subEvent.name}</Text>
+                        <Text style={styles.subEventItemDetail}>
+                          {new Date(subEvent.date).toLocaleDateString()} • {subEvent.venue}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.subEventItemActions}>
+                      <TouchableOpacity 
+                        style={styles.subEventActionBtn} 
+                        onPress={() => handleEditEvent(subEvent)}
+                      >
+                        <Ionicons name="create-outline" size={18} color={colors.primaryLight} />
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={styles.subEventActionBtn} 
+                        onPress={() => handleAssignUsers(subEvent._id)}
+                      >
+                        <Ionicons name="people-outline" size={18} color={colors.secondary} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
+
             <View style={styles.actionsRow}>
               <Button variant="outline" size="sm" title="Edit" onPress={() => handleEditEvent(event)} style={styles.actionBtn} />
-              <Button variant="primary" size="sm" title="Assign" onPress={() => handleAssignUsers(event._id)} style={styles.actionBtn} />
+              <Button variant="outline" size="sm" title="Assign" onPress={() => handleAssignUsers(event._id)} style={styles.actionBtn} />
+              <Button variant="primary" size="sm" title="+ Sub-event" onPress={() => handleNewEvent(event._id)} style={styles.actionBtn} />
             </View>
           </Card>
         ))}
 
-        {events.length === 0 && !isLoading && (
+        {filteredEvents.length === 0 && !isLoading && (
           <Text style={styles.emptyText}>No events found.</Text>
         )}
       </ScrollView>
@@ -246,11 +414,22 @@ export default function AdminEventsScreen() {
           >
             <Card style={styles.modalCard}>
               <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Edit Event</Text>
+                <Text style={styles.modalTitle}>
+                  {editingEvent ? 'Edit Event' : parentEventId ? 'Create Sub-event' : 'Create Event'}
+                </Text>
                 <TouchableOpacity onPress={() => setIsEditModalVisible(false)} style={styles.closeBtn}>
                   <Ionicons name="close" size={24} color={colors.text} />
                 </TouchableOpacity>
               </View>
+
+              {parentEventId && (
+                <View style={styles.subEventIndicator}>
+                  <Ionicons name="git-merge-outline" size={16} color={colors.primaryLight} />
+                  <Text style={styles.subEventIndicatorText}>
+                    Creating sub-event under: {events.find(e => e._id === parentEventId)?.name || 'Parent Event'}
+                  </Text>
+                </View>
+              )}
 
               {eventError ? (
                 <View style={styles.errorBox}>
@@ -263,40 +442,60 @@ export default function AdminEventsScreen() {
                   label="Event Name *"
                   placeholder="Enter event name"
                   value={eventName}
-                  onChangeText={setEventName}
+                  onChangeText={(val) => {
+                    setEventName(val);
+                    if (eventNameError) setEventNameError('');
+                  }}
                   icon="bookmark-outline"
+                  error={eventNameError}
                 />
 
                 <Input
                   label="Department *"
                   placeholder="Enter department (e.g. CSE, IT)"
                   value={eventDept}
-                  onChangeText={setEventDept}
+                  onChangeText={(val) => {
+                    setEventDept(val);
+                    if (eventDeptError) setEventDeptError('');
+                  }}
                   icon="business-outline"
+                  error={eventDeptError}
                 />
 
                 <Input
                   label="Date (YYYY-MM-DD) *"
                   placeholder="e.g. 2026-05-21"
                   value={eventDate}
-                  onChangeText={setEventDate}
+                  onChangeText={(val) => {
+                    setEventDate(val);
+                    if (eventDateError) setEventDateError('');
+                  }}
                   icon="calendar-outline"
+                  error={eventDateError}
                 />
 
                 <Input
                   label="Venue *"
                   placeholder="Enter venue"
                   value={eventVenue}
-                  onChangeText={setEventVenue}
+                  onChangeText={(val) => {
+                    setEventVenue(val);
+                    if (eventVenueError) setEventVenueError('');
+                  }}
                   icon="location-outline"
+                  error={eventVenueError}
                 />
 
                 <Input
                   label="Convener *"
                   placeholder="Enter convener name"
                   value={eventConvener}
-                  onChangeText={setEventConvener}
+                  onChangeText={(val) => {
+                    setEventConvener(val);
+                    if (eventConvenerError) setEventConvenerError('');
+                  }}
                   icon="person-outline"
+                  error={eventConvenerError}
                 />
 
                 <Input
@@ -688,5 +887,118 @@ const styles = StyleSheet.create({
   userRowEmail: {
     fontSize: fontSize.xs,
     color: colors.textSecondary,
-  }
+  },
+  subEventIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.primary + '15',
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+    marginBottom: spacing.md,
+  },
+  subEventIndicatorText: {
+    fontSize: fontSize.xs,
+    color: colors.primaryLight,
+    fontWeight: fontWeight.semibold,
+    flex: 1,
+  },
+  subEventsContainer: {
+    marginTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  subEventsTitle: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.bold,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  subEventItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.bgInput,
+    padding: spacing.sm,
+    borderRadius: borderRadius.sm,
+    marginBottom: spacing.xs,
+    gap: spacing.sm,
+  },
+  subEventItemMain: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  subEventItemName: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+  },
+  subEventItemDetail: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+  },
+  subEventItemActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  subEventActionBtn: {
+    padding: 4,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgInput,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  searchIcon: {
+    marginRight: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.text,
+    fontSize: fontSize.sm,
+    paddingVertical: spacing.sm,
+  },
+  clearSearchBtn: {
+    padding: spacing.xs,
+  },
+  filterChipsScroll: {
+    marginBottom: spacing.md,
+  },
+  filterChipsContainer: {
+    gap: spacing.xs,
+    paddingRight: spacing.md,
+  },
+  filterChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.bgCard,
+  },
+  filterChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  filterChipText: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.medium,
+  },
+  filterChipTextActive: {
+    color: '#FFF',
+    fontWeight: fontWeight.bold,
+  },
 });

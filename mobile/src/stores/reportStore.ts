@@ -52,6 +52,7 @@ interface ReportState {
   approveReport: (id: string) => Promise<void>;
   rejectReport: (id: string, note: string) => Promise<void>;
   generatePdf: (id: string) => Promise<string>;
+  deleteReport: (id: string) => Promise<void>;
   addSection: (reportId: string, data: Record<string, any>) => Promise<void>;
   updateSection: (sectionId: string, data: Record<string, any>) => Promise<void>;
   deleteSection: (sectionId: string) => Promise<void>;
@@ -149,6 +150,21 @@ export const useReportStore = create<ReportState>()((set, get) => ({
       set({ currentReport: data.data.report });
     } catch (error: any) {
       set({ error: error.response?.data?.message || 'Failed to reject' });
+      throw error;
+    }
+  },
+
+  deleteReport: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      await reportApi.delete(id);
+      set((state) => ({
+        reports: state.reports.filter((r) => r._id !== id),
+        currentReport: state.currentReport?._id === id ? null : state.currentReport,
+        isLoading: false
+      }));
+    } catch (error: any) {
+      set({ error: error.response?.data?.message || 'Failed to delete report', isLoading: false });
       throw error;
     }
   },

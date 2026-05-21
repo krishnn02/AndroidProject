@@ -264,6 +264,24 @@ class ReportService {
     const budget = await Budget.findByIdAndDelete(budgetId);
     if (!budget) throw createError(404, 'Budget entry not found');
   }
+
+  /**
+   * Delete a report and all its components (sections, budgets, images)
+   */
+  async delete(reportId: string): Promise<void> {
+    const report = await Report.findById(reportId);
+    if (!report) throw createError(404, 'Report not found');
+
+    // Get section IDs
+    const sections = await ReportSection.find({ report: reportId });
+    const sectionIds = sections.map(s => s._id);
+
+    // Delete associated images, sections, budgets
+    await Image.deleteMany({ section: { $in: sectionIds } });
+    await ReportSection.deleteMany({ report: reportId });
+    await Budget.deleteMany({ report: reportId });
+    await report.deleteOne();
+  }
 }
 
 export const reportService = new ReportService();

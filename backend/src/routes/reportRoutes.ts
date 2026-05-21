@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import {
   createReport, getReports, getReport, updateReport, updateFrontPage,
-  submitReport, approveReport, rejectReport,
+  submitReport, approveReport, rejectReport, deleteReport,
   addSection, updateSection, deleteSection, reorderSections,
   addBudget, updateBudget, deleteBudget,
 } from '../controllers/reportController.js';
@@ -23,6 +23,7 @@ router.patch('/:id/front-page', updateFrontPage);
 router.post('/:id/submit', submitReport);
 router.post('/:id/approve', authorize(Role.ADMIN), approveReport);
 router.post('/:id/reject', authorize(Role.ADMIN), rejectReport);
+router.delete('/:id', deleteReport);
 
 // Sections
 router.post('/:reportId/sections', addSection);

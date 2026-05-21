@@ -12,6 +12,7 @@ interface User {
   department: string;
   college?: string;
   role: 'ADMIN' | 'USER';
+  avatarColor?: string;
 }
 
 interface AuthState {

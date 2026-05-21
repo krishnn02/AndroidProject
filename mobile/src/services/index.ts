@@ -65,6 +65,9 @@ export const reportApi = {
   generatePdf: (id: string) =>
     api.get(`/reports/${id}/pdf`),
 
+  delete: (id: string) =>
+    api.delete(`/reports/${id}`),
+
   // Sections
   addSection: (reportId: string, data: Record<string, any>) =>
     api.post(`/reports/${reportId}/sections`, data),

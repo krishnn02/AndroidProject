@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
   Alert, ActivityIndicator, Image as RNImage,
@@ -6,7 +6,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { openPdfPreview, downloadAndSharePdf } from '../../src/utils/pdfHelper';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { reportApi, imageApi, eventApi } from '../../src/services';
 import { useReportStore } from '../../src/stores/reportStore';
 import { Button } from '../../src/components/ui';
@@ -28,9 +28,23 @@ const DEFAULT_EVENT_DETAILS: EventDetailField[] = [
   { key: 'Target Audience', value: '', editable: false },
 ];
 
+interface ContentBlock {
+  _id?: string;
+  heading: string;
+  text: string;
+  images: (string | null)[];
+  originalImages?: any[];
+}
+
 export default function CreateReportScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const eventId = params.eventId as string;
+  const reportId = params.reportId as string;
+
   const { generatePdf } = useReportStore();
+
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Section 0: Theme selector state
   const [themeType, setThemeType] = useState<'CORPORATE' | 'CULTURAL' | 'TECHNICAL' | 'SEMINAR' | 'SUSTAINABLE'>('CORPORATE');
@@ -44,18 +58,109 @@ export default function CreateReportScreen() {
   // Section 3: Event Details
   const [eventDetails, setEventDetails] = useState<EventDetailField[]>(DEFAULT_EVENT_DETAILS);
 
-  interface ContentBlock {
-    heading: string;
-    text: string;
-    images: (string | null)[];
-  }
-
-  // Section 4: Content blocks (sections containing Heading, Text, and Photos)
+  // Section 4: Content blocks
   const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([
     { heading: 'About the Event', text: '', images: [null, null] }
   ]);
 
+  // Track deleted sections
+  const [deletedSectionIds, setDeletedSectionIds] = useState<string[]>([]);
+
+  // Validation States
+  const [titleError, setTitleError] = useState('');
+  const [detailsErrors, setDetailsErrors] = useState<string[]>([]);
+  const [blocksErrors, setBlocksErrors] = useState<{ heading?: string; text?: string }[]>([]);
+
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ---------- Fetch Event & Report Details ----------
+  useEffect(() => {
+    const loadAllData = async () => {
+      if (!eventId) {
+        Alert.alert('Error', 'Missing Event ID.');
+        router.back();
+        return;
+      }
+      setIsLoadingData(true);
+      try {
+        // Fetch Event Details
+        const { data: eventRes } = await eventApi.getById(eventId);
+        const event = eventRes.data.event;
+        setThemeType(event.themeType || 'CORPORATE');
+
+        // Formulate pre-populated values from the event object
+        const prepopulated = {
+          'Event Name': event.name || '',
+          'Date of the Event': event.date && !isNaN(Date.parse(event.date)) ? new Date(event.date).toISOString().split('T')[0] : '',
+          'Venue of the Event': event.venue || '',
+          'Speaker': event.speaker || '',
+          'Event Convenor': event.convener || '',
+          'Faculty Coordinator': event.facultyCoordinator || '',
+          'Target Audience': event.targetAudience || '',
+        };
+
+        if (reportId) {
+          // Fetch existing report
+          const { data: reportRes } = await reportApi.getById(reportId);
+          const report = reportRes.data.report;
+
+          setTitle(report.frontPage?.eventTitle || event.name || '');
+
+          // Setup logos
+          const savedLogos = report.frontPage?.logos || [];
+          const paddedLogos = [...savedLogos];
+          while (paddedLogos.length < 4) {
+            paddedLogos.push(null);
+          }
+          setLogos(paddedLogos);
+
+          // Setup details (Key-Value)
+          const savedDetails = report.frontPage?.eventDetails || [];
+          const finalDetails = DEFAULT_EVENT_DETAILS.map(defField => {
+            const saved = savedDetails.find((d: any) => d.key === defField.key);
+            const fallbackValue = prepopulated[defField.key as keyof typeof prepopulated] || '';
+            return { ...defField, value: saved ? saved.value : fallbackValue };
+          });
+
+          // Append any custom keys that aren't in the default details
+          savedDetails.forEach((d: any) => {
+            if (!DEFAULT_EVENT_DETAILS.some(def => def.key === d.key)) {
+              finalDetails.push({ key: d.key, value: d.value, editable: true });
+            }
+          });
+          setEventDetails(finalDetails);
+
+          // Setup sections
+          if (report.sections && report.sections.length > 0) {
+            const sorted = [...report.sections].sort((a, b) => a.sortOrder - b.sortOrder);
+            const blocks = sorted.map((sec: any) => ({
+              _id: sec._id,
+              heading: sec.heading || '',
+              text: sec.content?.paragraphs?.join('\n\n') || '',
+              images: sec.images?.map((img: any) => img.url) || [null, null],
+              originalImages: sec.images || []
+            }));
+            setContentBlocks(blocks);
+          }
+        } else {
+          // New report creation scenario
+          setTitle(event.name || '');
+          const initialDetails = DEFAULT_EVENT_DETAILS.map(field => ({
+            ...field,
+            value: prepopulated[field.key as keyof typeof prepopulated] || ''
+          }));
+          setEventDetails(initialDetails);
+        }
+      } catch (err: any) {
+        console.error('Failed to load data:', err);
+        Alert.alert('Error', 'Failed to retrieve event or report details.');
+      } finally {
+        setIsLoadingData(false);
+      }
+    };
+
+    loadAllData();
+  }, [eventId, reportId]);
 
   // ---------- Logo Helpers ----------
   const pickLogo = async (index: number) => {
@@ -93,10 +198,12 @@ export default function CreateReportScreen() {
 
   const addDetailField = () => {
     setEventDetails([...eventDetails, { key: '', value: '', editable: true }]);
+    setDetailsErrors([...detailsErrors, '']);
   };
 
   const removeDetailField = (index: number) => {
     setEventDetails(eventDetails.filter((_, i) => i !== index));
+    setDetailsErrors(detailsErrors.filter((_, i) => i !== index));
   };
 
   // ---------- Content Blocks Helpers ----------
@@ -117,11 +224,17 @@ export default function CreateReportScreen() {
       ...contentBlocks,
       { heading: `Section ${contentBlocks.length + 1}`, text: '', images: [null, null] }
     ]);
+    setBlocksErrors([...blocksErrors, {}]);
   };
 
   const removeContentBlock = (index: number) => {
     if (contentBlocks.length <= 1) return;
+    const block = contentBlocks[index];
+    if (block._id) {
+      setDeletedSectionIds([...deletedSectionIds, block._id]);
+    }
     setContentBlocks(contentBlocks.filter((_, i) => i !== index));
+    setBlocksErrors(blocksErrors.filter((_, i) => i !== index));
   };
 
   const moveBlockUp = (index: number) => {
@@ -131,6 +244,12 @@ export default function CreateReportScreen() {
     updated[index] = updated[index - 1];
     updated[index - 1] = temp;
     setContentBlocks(updated);
+
+    const updatedErr = [...blocksErrors];
+    const tempErr = updatedErr[index];
+    updatedErr[index] = updatedErr[index - 1];
+    updatedErr[index - 1] = tempErr;
+    setBlocksErrors(updatedErr);
   };
 
   const moveBlockDown = (index: number) => {
@@ -140,6 +259,12 @@ export default function CreateReportScreen() {
     updated[index] = updated[index + 1];
     updated[index + 1] = temp;
     setContentBlocks(updated);
+
+    const updatedErr = [...blocksErrors];
+    const tempErr = updatedErr[index];
+    updatedErr[index] = updatedErr[index + 1];
+    updatedErr[index + 1] = tempErr;
+    setBlocksErrors(updatedErr);
   };
 
   // ---------- Block Images Helpers ----------
@@ -174,8 +299,54 @@ export default function CreateReportScreen() {
 
   // ---------- Submit ----------
   const handleSubmit = async () => {
+    let hasError = false;
+    setTitleError('');
+    setDetailsErrors([]);
+    setBlocksErrors([]);
+
     if (!title.trim()) {
-      Alert.alert('Required', 'Please enter a report title.');
+      setTitleError('Report Title is required.');
+      hasError = true;
+    } else if (title.trim().length < 3) {
+      setTitleError('Report Title must be at least 3 characters.');
+      hasError = true;
+    }
+
+    const newDetailsErrors = eventDetails.map((detail) => {
+      if (detail.editable) {
+        if (!detail.key.trim() && !detail.value.trim()) {
+          return 'Both key and value must be filled, or remove this field.';
+        }
+        if (!detail.key.trim()) {
+          return 'Field key is required.';
+        }
+        if (!detail.value.trim()) {
+          return 'Field value is required.';
+        }
+      }
+      return '';
+    });
+    if (newDetailsErrors.some(err => err !== '')) {
+      setDetailsErrors(newDetailsErrors);
+      hasError = true;
+    }
+
+    const newBlocksErrors = contentBlocks.map((block) => {
+      const err: { heading?: string; text?: string } = {};
+      if (!block.heading.trim()) {
+        err.heading = 'Section heading is required.';
+      }
+      if (!block.text.trim()) {
+        err.text = 'Section content text is required.';
+      }
+      return err;
+    });
+    if (newBlocksErrors.some(err => err.heading || err.text)) {
+      setBlocksErrors(newBlocksErrors);
+      hasError = true;
+    }
+
+    if (hasError) {
       return;
     }
 
@@ -185,36 +356,30 @@ export default function CreateReportScreen() {
       const uploadedLogos: string[] = [];
       for (const logoUri of logos) {
         if (logoUri) {
-          const formData = new FormData();
-          formData.append('logo', {
-            uri: logoUri,
-            type: 'image/jpeg',
-            name: 'logo.jpg',
-          } as any);
-          const { data } = await imageApi.uploadLogo(formData);
-          uploadedLogos.push(data.data.url);
+          if (logoUri.startsWith('http')) {
+            uploadedLogos.push(logoUri);
+          } else {
+            const formData = new FormData();
+            formData.append('logo', {
+              uri: logoUri,
+              type: 'image/jpeg',
+              name: 'logo.jpg',
+            } as any);
+            const { data } = await imageApi.uploadLogo(formData);
+            uploadedLogos.push(data.data.url);
+          }
         }
       }
 
-      // Step 2: Create the Event (using selected theme type)
-      const getDetail = (key: string) => eventDetails.find((d) => d.key === key)?.value || '';
+      // Step 2: Update event theme selection
+      await eventApi.update(eventId, { themeType });
 
-      const newEventData = {
-        name: getDetail('Event Name') || title || 'New Event',
-        type: 'OTHER',
-        department: 'General',
-        date: new Date().toISOString(),
-        venue: getDetail('Venue of the Event') || 'TBD',
-        convener: getDetail('Event Convenor') || 'Admin',
-        themeType: themeType,
-      };
-
-      const { data: eventRes } = await eventApi.create(newEventData);
-      const newEventId = eventRes.data.event._id;
-
-      // Step 3: Create the report
-      const { data: reportData } = await reportApi.create(newEventId);
-      const reportId = reportData.data.report._id;
+      // Step 3: Fetch/create report draft
+      let activeReportId = reportId;
+      if (!activeReportId) {
+        const { data: reportRes } = await reportApi.create(eventId);
+        activeReportId = reportRes.data.report._id;
+      }
 
       // Step 4: Update front page
       const frontPage = {
@@ -224,65 +389,120 @@ export default function CreateReportScreen() {
           .filter((d) => d.key.trim() && d.value.trim())
           .map((d) => ({ key: d.key, value: d.value })),
       };
-      await reportApi.updateFrontPage(reportId, frontPage);
+      await reportApi.updateFrontPage(activeReportId, frontPage);
 
-      // Step 5: Save sections and upload images section-by-section
+      // Step 5: Delete sections marked for deletion
+      for (const sId of deletedSectionIds) {
+        try {
+          await reportApi.deleteSection(sId);
+        } catch (e) {
+          console.error(`Failed to delete section ${sId}`, e);
+        }
+      }
+
+      // Step 6: Save sections and upload images section-by-section
       for (let i = 0; i < contentBlocks.length; i++) {
         const block = contentBlocks[i];
         const text = block.text.trim();
-        // Create section if it has text or images
-        if (text || block.images.some((img) => img !== null)) {
-          const sectionData = {
-            type: i === 0 ? 'ABOUT' : 'CUSTOM',
+        
+        if (block._id) {
+          // Update existing section
+          await reportApi.updateSection(block._id, {
             heading: block.heading.trim() || `Section ${i + 1}`,
             content: { paragraphs: text ? [text] : [] },
             sortOrder: i,
-          };
-          const { data: sectionRes } = await reportApi.addSection(reportId, sectionData);
-          const sectionId = sectionRes.data.section._id;
+          });
 
-          // Upload images for this section
-          const sectionImages = block.images.filter((img) => img !== null) as string[];
-          for (const imgUri of sectionImages) {
+          // Check if any original images were deleted
+          const remainingUrls = block.images.filter(img => img && img.startsWith('http'));
+          const originalImages = block.originalImages || [];
+          const removedImages = originalImages.filter((orig: any) => !remainingUrls.includes(orig.url));
+
+          for (const img of removedImages) {
+            try {
+              await imageApi.delete(img._id);
+            } catch (err) {
+              console.error('Failed to delete image:', img._id, err);
+            }
+          }
+
+          // Upload new local images for this section
+          const newLocalImages = block.images.filter(img => img && !img.startsWith('http')) as string[];
+          for (const imgUri of newLocalImages) {
             const formData = new FormData();
             formData.append('images', {
               uri: imgUri,
               type: 'image/jpeg',
               name: 'photo.jpg',
             } as any);
-            await imageApi.upload(sectionId, formData);
+            await imageApi.upload(block._id, formData);
+          }
+
+        } else {
+          // Create new section
+          if (text || block.images.some((img) => img !== null)) {
+            const sectionData = {
+              type: i === 0 ? 'ABOUT' : 'CUSTOM',
+              heading: block.heading.trim() || `Section ${i + 1}`,
+              content: { paragraphs: text ? [text] : [] },
+              sortOrder: i,
+            };
+            const { data: sectionRes } = await reportApi.addSection(activeReportId, sectionData);
+            const sectionId = sectionRes.data.section._id;
+
+            // Upload images for this section
+            const sectionImages = block.images.filter((img) => img !== null && !img.startsWith('http')) as string[];
+            for (const imgUri of sectionImages) {
+              const formData = new FormData();
+              formData.append('images', {
+                uri: imgUri,
+                type: 'image/jpeg',
+                name: 'photo.jpg',
+              } as any);
+              await imageApi.upload(sectionId, formData);
+            }
           }
         }
       }
 
-      // Step 6: Submit the report
-      await reportApi.submit(reportId);
+      // Step 7: Submit the report
+      await reportApi.submit(activeReportId);
 
-      // Step 7: Generate PDF
+      // Step 8: Generate PDF
       try {
-        const pdfUrl = await generatePdf(reportId);
+        const pdfUrl = await generatePdf(activeReportId);
         Alert.alert('Success!', 'Report created and PDF generated.', [
           { text: 'Preview PDF', onPress: () => openPdfPreview(pdfUrl) },
-          { text: 'Download PDF', onPress: () => downloadAndSharePdf(pdfUrl, `report-${reportId}.pdf`) },
+          { text: 'Download PDF', onPress: () => downloadAndSharePdf(pdfUrl, `report-${activeReportId}.pdf`) },
           { text: 'Done', onPress: () => router.back() },
         ]);
       } catch {
-        Alert.alert('Report Created', 'Report was submitted but PDF generation failed. You can try generating the PDF later from the Reports tab.', [
+        Alert.alert('Report Saved', 'Report was submitted successfully but PDF generation failed. You can try generating the PDF later from the Reports tab.', [
           { text: 'OK', onPress: () => router.back() },
         ]);
       }
     } catch (error: any) {
       console.error('Submit error:', error);
-      Alert.alert('Error', error?.response?.data?.message || error.message || 'Failed to create report');
+      Alert.alert('Error', error?.response?.data?.message || error.message || 'Failed to submit report');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // ---------- Render ----------
+  // ---------- Render Loading ----------
+  if (isLoadingData) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+        <Text style={{ marginTop: spacing.md, color: colors.textSecondary }}>Loading details...</Text>
+      </View>
+    );
+  }
+
+  // ---------- Render Content ----------
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <Text style={styles.pageTitle}>Create Event Report</Text>
+      <Text style={styles.pageTitle}>{reportId ? 'Edit Event Report' : 'Create Event Report'}</Text>
       <Text style={styles.pageSubtitle}>Fill in the sections below to generate a styled PDF report</Text>
 
       {/* ===== SECTION 0: THEME SELECTOR ===== */}
@@ -348,12 +568,16 @@ export default function CreateReportScreen() {
           <Text style={styles.sectionTitle}>Title</Text>
         </View>
         <TextInput
-          style={styles.input}
+          style={[styles.input, titleError ? styles.inputError : null]}
           placeholder="e.g. Expert Session on ER Diagrams"
           placeholderTextColor={colors.textMuted}
           value={title}
-          onChangeText={setTitle}
+          onChangeText={(val) => {
+            setTitle(val);
+            if (titleError) setTitleError('');
+          }}
         />
+        {titleError ? <Text style={styles.errorText}>{titleError}</Text> : null}
       </View>
 
       {/* ===== SECTION 3: EVENT DETAILS ===== */}
@@ -364,30 +588,54 @@ export default function CreateReportScreen() {
         </View>
         <Text style={styles.sectionHint}>Key-value table rendered in the PDF</Text>
         {eventDetails.map((detail, idx) => (
-          <View key={idx} style={styles.kvRow}>
-            {detail.editable ? (
+          <View key={idx} style={{ marginBottom: spacing.md }}>
+            <View style={styles.kvRow}>
+              {detail.editable ? (
+                <TextInput
+                  style={[
+                    styles.kvKey,
+                    styles.kvKeyEditable,
+                    detailsErrors[idx] ? styles.inputError : null
+                  ]}
+                  value={detail.key}
+                  onChangeText={(t) => {
+                    updateDetailKey(idx, t);
+                    if (detailsErrors[idx]) {
+                      const updated = [...detailsErrors];
+                      updated[idx] = '';
+                      setDetailsErrors(updated);
+                    }
+                  }}
+                  placeholder="Custom Key"
+                  placeholderTextColor={colors.textMuted}
+                />
+              ) : (
+                <Text style={styles.kvKey}>{detail.key}</Text>
+              )}
               <TextInput
-                style={[styles.kvKey, styles.kvKeyEditable]}
-                value={detail.key}
-                onChangeText={(t) => updateDetailKey(idx, t)}
-                placeholder="Custom Key"
+                style={[
+                  styles.kvValue,
+                  detailsErrors[idx] ? styles.inputError : null
+                ]}
+                value={detail.value}
+                onChangeText={(t) => {
+                  updateDetailValue(idx, t);
+                  if (detailsErrors[idx]) {
+                    const updated = [...detailsErrors];
+                    updated[idx] = '';
+                    setDetailsErrors(updated);
+                  }
+                }}
+                placeholder="Enter value..."
                 placeholderTextColor={colors.textMuted}
               />
-            ) : (
-              <Text style={styles.kvKey}>{detail.key}</Text>
-            )}
-            <TextInput
-              style={styles.kvValue}
-              value={detail.value}
-              onChangeText={(t) => updateDetailValue(idx, t)}
-              placeholder="Enter value..."
-              placeholderTextColor={colors.textMuted}
-            />
-            {detail.editable && (
-              <TouchableOpacity onPress={() => removeDetailField(idx)} style={styles.kvRemove}>
-                <Ionicons name="trash-outline" size={18} color={colors.error} />
-              </TouchableOpacity>
-            )}
+              {detail.editable && (
+                <TouchableOpacity onPress={() => removeDetailField(idx)} style={styles.kvRemove}>
+                  <Ionicons name="trash-outline" size={18} color={colors.error} />
+                </TouchableOpacity>
+              )}
+            </View>
+            {detailsErrors[idx] ? <Text style={styles.errorText}>{detailsErrors[idx]}</Text> : null}
           </View>
         ))}
         <Button variant="outline" size="sm" title="Add Field" icon={<Ionicons name="add" size={16} color={colors.primary} />} onPress={addDetailField} style={styles.addBtn} />
@@ -422,23 +670,46 @@ export default function CreateReportScreen() {
             </View>
 
             <TextInput
-              style={[styles.input, { marginBottom: spacing.sm }]}
+              style={[
+                styles.input,
+                { marginBottom: spacing.xs },
+                blocksErrors[idx]?.heading ? styles.inputError : null
+              ]}
               placeholder="Section Heading (e.g. About the Event)"
               placeholderTextColor={colors.textMuted}
               value={block.heading}
-              onChangeText={(t) => updateBlockHeading(idx, t)}
+              onChangeText={(t) => {
+                updateBlockHeading(idx, t);
+                if (blocksErrors[idx]?.heading) {
+                  const updated = [...blocksErrors];
+                  updated[idx] = { ...updated[idx], heading: undefined };
+                  setBlocksErrors(updated);
+                }
+              }}
             />
+            {blocksErrors[idx]?.heading ? <Text style={[styles.errorText, { marginBottom: spacing.sm }]}>{blocksErrors[idx].heading}</Text> : null}
 
             <TextInput
-              style={styles.textArea}
+              style={[
+                styles.textArea,
+                blocksErrors[idx]?.text ? styles.inputError : null
+              ]}
               value={block.text}
-              onChangeText={(t) => updateBlockText(idx, t)}
+              onChangeText={(t) => {
+                updateBlockText(idx, t);
+                if (blocksErrors[idx]?.text) {
+                  const updated = [...blocksErrors];
+                  updated[idx] = { ...updated[idx], text: undefined };
+                  setBlocksErrors(updated);
+                }
+              }}
               multiline
               numberOfLines={4}
               placeholder="Enter section content text..."
               placeholderTextColor={colors.textMuted}
               textAlignVertical="top"
             />
+            {blocksErrors[idx]?.text ? <Text style={[styles.errorText, { marginTop: spacing.xs }]}>{blocksErrors[idx].text}</Text> : null}
 
             {/* Section Images Grid */}
             <Text style={styles.blockSubLabel}>Section Photos</Text>
@@ -483,7 +754,7 @@ export default function CreateReportScreen() {
         ) : (
           <>
             <Ionicons name="document-attach" size={22} color="white" />
-            <Text style={styles.submitText}>Generate Report</Text>
+            <Text style={styles.submitText}>{reportId ? 'Save & Submit Report' : 'Generate Report'}</Text>
           </>
         )}
       </TouchableOpacity>
@@ -498,6 +769,7 @@ const styles = StyleSheet.create({
   scrollContent: { padding: spacing.lg },
   pageTitle: { fontSize: fontSize.xxl, fontWeight: fontWeight.bold, color: colors.text, marginBottom: 4 },
   pageSubtitle: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.xl },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   sectionContainer: {
     backgroundColor: colors.bgCard,
@@ -548,6 +820,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border,
     borderRadius: borderRadius.md, padding: spacing.md,
     fontSize: fontSize.md, color: colors.text,
+  },
+  inputError: {
+    borderColor: colors.error,
+  },
+  errorText: {
+    color: colors.error,
+    fontSize: fontSize.xs,
+    marginTop: spacing.xs,
   },
 
   // Key-Value rows

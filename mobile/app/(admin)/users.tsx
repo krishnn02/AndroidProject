@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { userApi } from '../../src/services';
-import { Card, Button, Input } from '../../src/components/ui';
+import { Card, Button, Input, SafetyModal } from '../../src/components/ui';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../src/theme';
 
 export default function AdminUsersScreen() {
@@ -31,10 +31,25 @@ export default function AdminUsersScreen() {
   const [formCollege, setFormCollege] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+  const [formNameError, setFormNameError] = useState('');
+  const [formEmailError, setFormEmailError] = useState('');
+  const [formPhoneError, setFormPhoneError] = useState('');
+  const [formPasswordError, setFormPasswordError] = useState('');
+  const [formDeptError, setFormDeptError] = useState('');
 
   // User Options Modal State
   const [selectedOptUser, setSelectedOptUser] = useState<any>(null);
   const [isOptionsModalVisible, setIsOptionsModalVisible] = useState(false);
+
+  // Search & Filters State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
+  const [deptFilter, setDeptFilter] = useState('ALL');
+
+  // Safety Confirmation Modals State
+  const [isDeactivateVisible, setIsDeactivateVisible] = useState(false);
+  const [isDeleteVisible, setIsDeleteVisible] = useState(false);
+  const [safetyActionLoading, setSafetyActionLoading] = useState(false);
 
   const loadUsers = async () => {
     setIsLoading(true);
@@ -61,6 +76,11 @@ export default function AdminUsersScreen() {
     setFormDepartment('');
     setFormCollege('');
     setFormError('');
+    setFormNameError('');
+    setFormEmailError('');
+    setFormPhoneError('');
+    setFormPasswordError('');
+    setFormDeptError('');
     setIsModalVisible(true);
   };
 
@@ -73,6 +93,11 @@ export default function AdminUsersScreen() {
     setFormDepartment(user.department || '');
     setFormCollege(user.college || '');
     setFormError('');
+    setFormNameError('');
+    setFormEmailError('');
+    setFormPhoneError('');
+    setFormPasswordError('');
+    setFormDeptError('');
     setIsModalVisible(true);
   };
 
@@ -96,72 +121,89 @@ export default function AdminUsersScreen() {
     }
   };
 
-  const handleDeactivateUser = (id: string, name: string) => {
-    Alert.alert(
-      'Deactivate User',
-      `Are you sure you want to deactivate ${name}? They will no longer be able to log in.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Deactivate',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await userApi.delete(id);
-              Alert.alert('Success', 'User deactivated successfully.');
-              setIsOptionsModalVisible(false);
-              loadUsers();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to deactivate user.');
-              console.error(error);
-            }
-          }
-        }
-      ]
-    );
+  const handleDeactivateConfirm = async () => {
+    if (!selectedOptUser) return;
+    setSafetyActionLoading(true);
+    try {
+      await userApi.delete(selectedOptUser._id);
+      Alert.alert('Success', 'User deactivated successfully.');
+      setIsDeactivateVisible(false);
+      setIsOptionsModalVisible(false);
+      loadUsers();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to deactivate user.');
+      console.error(error);
+    } finally {
+      setSafetyActionLoading(false);
+    }
   };
 
-  const handlePermanentDelete = (id: string, name: string) => {
-    Alert.alert(
-      'Delete User Permanently',
-      `WARNING: This will permanently delete ${name} and all their associated data from the system. This action CANNOT be undone.\n\nAre you sure you want to proceed?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete Permanently',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await userApi.delete(id, { permanent: true });
-              Alert.alert('Success', 'User deleted permanently.');
-              setIsOptionsModalVisible(false);
-              loadUsers();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete user.');
-              console.error(error);
-            }
-          }
-        }
-      ]
-    );
+  const handleDeleteConfirm = async () => {
+    if (!selectedOptUser) return;
+    setSafetyActionLoading(true);
+    try {
+      await userApi.delete(selectedOptUser._id, { permanent: true });
+      Alert.alert('Success', 'User deleted permanently.');
+      setIsDeleteVisible(false);
+      setIsOptionsModalVisible(false);
+      loadUsers();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to delete user.');
+      console.error(error);
+    } finally {
+      setSafetyActionLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
-    if (!formName.trim() || !formEmail.trim() || !formDepartment.trim()) {
-      setFormError('Please fill in Name, Email, and Department.');
-      return;
+    let hasError = false;
+    setFormNameError('');
+    setFormEmailError('');
+    setFormPhoneError('');
+    setFormPasswordError('');
+    setFormDeptError('');
+    setFormError('');
+
+    if (!formName.trim()) {
+      setFormNameError('Name is required');
+      hasError = true;
+    } else if (formName.trim().length < 2) {
+      setFormNameError('Name must be at least 2 characters');
+      hasError = true;
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!formEmail.trim()) {
+      setFormEmailError('Email is required');
+      hasError = true;
+    } else if (!emailRegex.test(formEmail.trim())) {
+      setFormEmailError('Please enter a valid email address');
+      hasError = true;
+    }
+
+    if (formPhone.trim() && !/^\d{10}$/.test(formPhone.trim())) {
+      setFormPhoneError('Phone must be a 10-digit number');
+      hasError = true;
+    }
+
     if (!editingUser && !formPassword.trim()) {
-      setFormError('Password is required for new users.');
-      return;
+      setFormPasswordError('Password is required for new users');
+      hasError = true;
+    } else if (formPassword.trim() && formPassword.trim().length < 6) {
+      setFormPasswordError('Password must be at least 6 characters');
+      hasError = true;
     }
-    if (!editingUser && formPassword.trim().length < 6) {
-      setFormError('Password must be at least 6 characters.');
+
+    if (!formDepartment.trim()) {
+      setFormDeptError('Department is required');
+      hasError = true;
+    }
+
+    if (hasError) {
       return;
     }
 
     setIsSubmitting(true);
-    setFormError('');
     try {
       const payload: any = {
         name: formName.trim(),
@@ -193,6 +235,26 @@ export default function AdminUsersScreen() {
     }
   };
 
+  const departments = ['ALL', ...Array.from(new Set(users.map(u => u.department).filter(Boolean)))];
+
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = 
+      u.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.department?.toLowerCase().includes(searchQuery.toLowerCase());
+      
+    const matchesStatus = 
+      statusFilter === 'ALL' ||
+      (statusFilter === 'ACTIVE' && u.isActive !== false) ||
+      (statusFilter === 'INACTIVE' && u.isActive === false);
+      
+    const matchesDept = 
+      deptFilter === 'ALL' || 
+      u.department === deptFilter;
+      
+    return matchesSearch && matchesStatus && matchesDept;
+  });
+
   return (
     <View style={styles.container}>
       <ScrollView 
@@ -204,7 +266,53 @@ export default function AdminUsersScreen() {
           <Button size="sm" icon={<Ionicons name="person-add" size={20} color={colors.text} />} title="New User" onPress={handleNewUser} />
         </View>
 
-        {users.map((u) => (
+        <View style={styles.searchContainer}>
+          <Input
+            placeholder="Search users by name, email..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            icon="search-outline"
+            containerStyle={{ marginBottom: spacing.sm }}
+          />
+        </View>
+
+        <View style={styles.filterSection}>
+          <Text style={styles.filterLabel}>Status:</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterChipsRow}>
+            {(['ALL', 'ACTIVE', 'INACTIVE'] as const).map(status => (
+              <TouchableOpacity
+                key={status}
+                onPress={() => setStatusFilter(status)}
+                style={[styles.chip, statusFilter === status && styles.chipActive]}
+              >
+                <Text style={[styles.chipText, statusFilter === status && styles.chipTextActive]}>
+                  {status}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {departments.length > 2 && (
+          <View style={[styles.filterSection, { marginTop: spacing.sm, marginBottom: spacing.md }]}>
+            <Text style={styles.filterLabel}>Dept:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterChipsRow}>
+              {departments.map(dept => (
+                <TouchableOpacity
+                  key={dept}
+                  onPress={() => setDeptFilter(dept)}
+                  style={[styles.chip, deptFilter === dept && styles.chipActive]}
+                >
+                  <Text style={[styles.chipText, deptFilter === dept && styles.chipTextActive]}>
+                    {dept}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {filteredUsers.map((u) => (
           <Card key={u._id} style={styles.userCard}>
             <View style={[styles.avatarContainer, u.isActive === false && styles.avatarInactive]}>
               <Text style={styles.avatarText}>{u.name.charAt(0).toUpperCase()}</Text>
@@ -251,7 +359,7 @@ export default function AdminUsersScreen() {
           </Card>
         ))}
 
-        {users.length === 0 && !isLoading && (
+        {filteredUsers.length === 0 && !isLoading && (
           <Text style={styles.emptyText}>No users found.</Text>
         )}
       </ScrollView>
@@ -289,45 +397,65 @@ export default function AdminUsersScreen() {
                   label="Full Name"
                   placeholder="Enter full name"
                   value={formName}
-                  onChangeText={setFormName}
+                  onChangeText={(val) => {
+                    setFormName(val);
+                    if (formNameError) setFormNameError('');
+                  }}
                   icon="person-outline"
+                  error={formNameError}
                 />
                 
                 <Input
                   label="Email Address"
                   placeholder="Enter email address"
                   value={formEmail}
-                  onChangeText={setFormEmail}
+                  onChangeText={(val) => {
+                    setFormEmail(val);
+                    if (formEmailError) setFormEmailError('');
+                  }}
                   icon="mail-outline"
                   keyboardType="email-address"
                   autoCapitalize="none"
                   editable={!editingUser}
+                  error={formEmailError}
                 />
 
                 <Input
                   label="Phone / Mobile"
                   placeholder="Enter phone number"
                   value={formPhone}
-                  onChangeText={setFormPhone}
+                  onChangeText={(val) => {
+                    setFormPhone(val);
+                    if (formPhoneError) setFormPhoneError('');
+                  }}
                   icon="call-outline"
                   keyboardType="phone-pad"
+                  error={formPhoneError}
                 />
 
                 <Input
                   label={editingUser ? 'Password (leave blank to keep unchanged)' : 'Password'}
                   placeholder="Enter password"
                   value={formPassword}
-                  onChangeText={setFormPassword}
+                  onChangeText={(val) => {
+                    setFormPassword(val);
+                    if (formPasswordError) setFormPasswordError('');
+                  }}
                   icon="lock-closed-outline"
                   secureTextEntry
+                  error={formPasswordError}
                 />
 
                 <Input
                   label="Department"
                   placeholder="Enter department (e.g. CSE, IT)"
                   value={formDepartment}
-                  onChangeText={setFormDepartment}
+                  onChangeText={(val) => {
+                    setFormDepartment(val);
+                    if (formDeptError) setFormDeptError('');
+                  }}
                   icon="business-outline"
+                  error={formDeptError}
                 />
 
                 <Input
@@ -373,51 +501,108 @@ export default function AdminUsersScreen() {
           <View style={styles.optionsContainer}>
             <View style={styles.optionsHeader}>
               <View style={styles.optionsBar} />
-              <Text style={styles.optionsTitle}>User Options</Text>
+              <Text style={styles.optionsTitle}>User Settings</Text>
               {selectedOptUser && (
-                <Text style={styles.optionsSubTitle}>{selectedOptUser.name} ({selectedOptUser.email})</Text>
+                <View style={styles.optionsUserCard}>
+                  <View style={[styles.avatarContainer, { width: 36, height: 36, marginRight: spacing.sm, marginBottom: 0 }, selectedOptUser.isActive === false && styles.avatarInactive]}>
+                    <Text style={[styles.avatarText, { fontSize: fontSize.md }]}>{selectedOptUser.name.charAt(0).toUpperCase()}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.optionsUserName}>{selectedOptUser.name}</Text>
+                    <Text style={styles.optionsUserEmail}>{selectedOptUser.email}</Text>
+                  </View>
+                  <View style={[styles.statusIndicator, { backgroundColor: selectedOptUser.isActive === false ? colors.error : colors.success }]} />
+                </View>
               )}
             </View>
 
             <View style={styles.optionsDivider} />
 
-            {selectedOptUser?.isActive === false ? (
+            <View style={styles.optionsGrid}>
               <TouchableOpacity 
-                style={styles.optionItem} 
-                onPress={() => handleActivateUser(selectedOptUser._id)}
+                style={styles.gridItem}
+                onPress={() => {
+                  setIsOptionsModalVisible(false);
+                  handleEditUser(selectedOptUser);
+                }}
               >
-                <Ionicons name="checkmark-circle-outline" size={24} color={colors.success} />
-                <Text style={[styles.optionText, styles.optionTextSuccess]}>Activate User</Text>
+                <View style={[styles.gridIconCircle, { backgroundColor: colors.primary + '15' }]}>
+                  <Ionicons name="create" size={24} color={colors.primaryLight} />
+                </View>
+                <Text style={styles.gridText}>Edit Profile</Text>
               </TouchableOpacity>
-            ) : (
-              <TouchableOpacity 
-                style={styles.optionItem} 
-                onPress={() => handleDeactivateUser(selectedOptUser?._id, selectedOptUser?.name)}
-              >
-                <Ionicons name="ban-outline" size={24} color={colors.warning} />
-                <Text style={[styles.optionText, styles.optionTextWarning]}>Deactivate User</Text>
-              </TouchableOpacity>
-            )}
 
-            <TouchableOpacity 
-              style={[styles.optionItem, styles.optionItemDanger]} 
-              onPress={() => handlePermanentDelete(selectedOptUser?._id, selectedOptUser?.name)}
-            >
-              <Ionicons name="trash-outline" size={24} color={colors.error} />
-              <Text style={[styles.optionText, styles.optionTextDanger]}>Delete Permanently</Text>
-            </TouchableOpacity>
+              {selectedOptUser?.isActive === false ? (
+                <TouchableOpacity 
+                  style={styles.gridItem} 
+                  onPress={() => handleActivateUser(selectedOptUser._id)}
+                >
+                  <View style={[styles.gridIconCircle, { backgroundColor: colors.success + '15' }]}>
+                    <Ionicons name="checkmark-circle" size={24} color={colors.success} />
+                  </View>
+                  <Text style={[styles.gridText, { color: colors.success }]}>Activate</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity 
+                  style={styles.gridItem} 
+                  onPress={() => {
+                    setIsDeactivateVisible(true);
+                  }}
+                >
+                  <View style={[styles.gridIconCircle, { backgroundColor: colors.warning + '15' }]}>
+                    <Ionicons name="ban" size={24} color={colors.warning} />
+                  </View>
+                  <Text style={[styles.gridText, { color: colors.warning }]}>Deactivate</Text>
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity 
+                style={styles.gridItem} 
+                onPress={() => {
+                  setIsDeleteVisible(true);
+                }}
+              >
+                <View style={[styles.gridIconCircle, { backgroundColor: colors.error + '15' }]}>
+                  <Ionicons name="trash" size={24} color={colors.error} />
+                </View>
+                <Text style={[styles.gridText, { color: colors.error }]}>Delete</Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.optionsDivider} />
 
-            <TouchableOpacity 
-              style={[styles.optionItem, { justifyContent: 'center' }]} 
-              onPress={() => setIsOptionsModalVisible(false)}
-            >
-              <Text style={[styles.optionText, { marginLeft: 0 }]}>Cancel</Text>
-            </TouchableOpacity>
+            <Button 
+              title="Close" 
+              variant="secondary"
+              onPress={() => setIsOptionsModalVisible(false)} 
+              style={{ width: '100%' }}
+            />
           </View>
         </TouchableOpacity>
       </Modal>
+
+      {/* Safety Confirmation Modals */}
+      <SafetyModal
+        visible={isDeactivateVisible}
+        title="Deactivate User"
+        description={`Are you sure you want to deactivate ${selectedOptUser?.name}? They will no longer be able to log in.`}
+        expectedText="DEACTIVATE"
+        confirmText="Deactivate"
+        onConfirm={handleDeactivateConfirm}
+        onCancel={() => setIsDeactivateVisible(false)}
+        isConfirming={safetyActionLoading}
+      />
+
+      <SafetyModal
+        visible={isDeleteVisible}
+        title="Permanently Delete User"
+        description={`WARNING: This will permanently delete ${selectedOptUser?.name} and all their data from the database. This action CANNOT be undone.`}
+        expectedText={selectedOptUser?.name || 'DELETE'}
+        confirmText="Delete Permanently"
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setIsDeleteVisible(false)}
+        isConfirming={safetyActionLoading}
+      />
     </View>
   );
 }
@@ -595,6 +780,7 @@ const styles = StyleSheet.create({
   },
   optionsHeader: {
     alignItems: 'center',
+    width: '100%',
   },
   optionsBar: {
     width: 40,
@@ -607,40 +793,101 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: fontWeight.bold,
     color: colors.text,
+    marginBottom: spacing.md,
   },
-  optionsSubTitle: {
+  optionsUserCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgInput,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  optionsUserName: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+  },
+  optionsUserEmail: {
     fontSize: fontSize.sm,
-    color: colors.textMuted,
-    marginTop: 4,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  statusIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   optionsDivider: {
     height: 1,
     backgroundColor: colors.border,
     marginVertical: spacing.md,
   },
-  optionItem: {
+  optionsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+  },
+  gridItem: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: colors.bgInput,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  gridIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+  },
+  gridText: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.semibold,
+    color: colors.text,
+  },
+  searchContainer: {
+    marginBottom: spacing.sm,
+  },
+  filterSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    borderRadius: borderRadius.md,
   },
-  optionItemDanger: {
-    // any extra style if needed
+  filterLabel: {
+    fontSize: fontSize.sm,
+    color: colors.textSecondary,
+    fontWeight: fontWeight.semibold,
+    marginRight: spacing.sm,
+    width: 50,
   },
-  optionText: {
-    fontSize: fontSize.md,
-    fontWeight: fontWeight.medium,
-    color: colors.text,
-    marginLeft: spacing.md,
+  filterChipsRow: {
+    flexDirection: 'row',
   },
-  optionTextSuccess: {
-    color: colors.success,
+  chip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: 6,
+    borderRadius: borderRadius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginRight: spacing.xs,
+    backgroundColor: colors.bgInput,
   },
-  optionTextWarning: {
-    color: colors.warning,
+  chipActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '20',
   },
-  optionTextDanger: {
-    color: colors.error,
+  chipText: {
+    fontSize: fontSize.xs,
+    fontWeight: fontWeight.semibold,
+    color: colors.textSecondary,
+  },
+  chipTextActive: {
+    color: colors.primaryLight,
   },
 });

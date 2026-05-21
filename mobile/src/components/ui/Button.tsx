@@ -12,10 +12,11 @@ interface ButtonProps {
   disabled?: boolean;
   icon?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  textStyle?: StyleProp<TextStyle>;
 }
 
 export const Button: React.FC<ButtonProps> = ({
-  title, onPress, variant = 'primary', size = 'md', loading, disabled, icon, style,
+  title, onPress, variant = 'primary', size = 'md', loading, disabled, icon, style, textStyle,
 }) => {
   const isDisabled = disabled || loading;
 
@@ -41,7 +42,7 @@ export const Button: React.FC<ButtonProps> = ({
           ) : (
             <>
               {icon}
-              <Text style={[styles.text, { fontSize: s.fontSize }]}>{title}</Text>
+              <Text style={[styles.text, { fontSize: s.fontSize }, textStyle]}>{title}</Text>
             </>
           )}
         </LinearGradient>
@@ -78,7 +79,7 @@ export const Button: React.FC<ButtonProps> = ({
       ) : (
         <>
           {icon}
-          <Text style={[styles.text, vs.text, { fontSize: s.fontSize }]}>{title}</Text>
+          <Text style={[styles.text, vs.text, { fontSize: s.fontSize }, textStyle]}>{title}</Text>
         </>
       )}
     </TouchableOpacity>

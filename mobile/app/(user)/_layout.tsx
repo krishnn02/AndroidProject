@@ -45,6 +45,7 @@ export default function UserLayout() {
       <Tabs.Screen name="reports/[id]/budget" options={{ href: null }} />
       <Tabs.Screen name="reports/[id]/front-page" options={{ href: null }} />
       <Tabs.Screen name="reports/[id]/sections" options={{ href: null }} />
+      <Tabs.Screen name="create-report" options={{ title: 'Create Report', href: null }} />
     </Tabs>
   );
 }

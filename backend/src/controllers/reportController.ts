@@ -109,3 +109,10 @@ export const deleteBudget = async (req: Request, res: Response, next: NextFuncti
     res.json({ success: true, message: 'Budget entry deleted' });
   } catch (error) { next(error); }
 };
+
+export const deleteReport = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await reportService.delete(req.params.id as string);
+    res.json({ success: true, message: 'Report deleted successfully' });
+  } catch (error) { next(error); }
+};
