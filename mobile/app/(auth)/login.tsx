@@ -36,7 +36,7 @@ export default function LoginScreen() {
         
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>SERMS</Text>
+            <Image source={require('../../assets/logo.jpg')} style={styles.logoImage} resizeMode="cover" />
           </View>
           <Text style={styles.title}>Welcome Back</Text>
           <Text style={styles.subtitle}>Smart Event Report Management System</Text>
@@ -93,10 +93,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxl,
   },
   logoContainer: {
-    width: 80,
-    height: 80,
+    width: 90,
+    height: 90,
     borderRadius: borderRadius.xl,
-    backgroundColor: colors.primary,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
@@ -106,11 +106,10 @@ const styles = StyleSheet.create({
     shadowRadius: 16,
     elevation: 8,
   },
-  logoText: {
-    color: '#fff',
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.extrabold,
-    letterSpacing: 1,
+  logoImage: {
+    width: 90,
+    height: 90,
+    borderRadius: borderRadius.xl,
   },
   title: {
     fontSize: fontSize.xxxl,

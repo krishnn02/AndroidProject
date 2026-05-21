@@ -24,14 +24,25 @@ class UserService {
     return user;
   }
 
-  async update(userId: string, data: Record<string, unknown>) {
-    const user = await User.findByIdAndUpdate(userId, data, { new: true, runValidators: true });
+  async update(userId: string, data: Record<string, any>) {
+    const user = await User.findById(userId).select('+password');
     if (!user) throw createError(404, 'User not found');
+
+    Object.keys(data).forEach((key) => {
+      user.set(key, data[key]);
+    });
+
+    await user.save();
     return user;
   }
 
-  async delete(userId: string) {
-    const user = await User.findByIdAndUpdate(userId, { isActive: false }, { new: true });
+  async delete(userId: string, permanent = false) {
+    let user;
+    if (permanent) {
+      user = await User.findByIdAndDelete(userId);
+    } else {
+      user = await User.findByIdAndUpdate(userId, { isActive: false }, { new: true });
+    }
     if (!user) throw createError(404, 'User not found');
     return user;
   }

@@ -138,6 +138,6 @@ export const userApi = {
   update: (id: string, data: Record<string, any>) =>
     api.patch(`/users/${id}`, data),
 
-  delete: (id: string) =>
-    api.delete(`/users/${id}`),
+  delete: (id: string, params?: Record<string, any>) =>
+    api.delete(`/users/${id}`, { params }),
 };
