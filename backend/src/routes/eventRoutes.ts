@@ -13,7 +13,7 @@ router.get('/:id/assignments', getAssignments);
 
 // Admin only
 router.post('/', authorize(Role.ADMIN), createEvent);
-router.patch('/:id', authorize(Role.ADMIN), updateEvent);
+router.patch('/:id', authorize(Role.ADMIN, Role.USER), updateEvent);
 router.delete('/:id', authorize(Role.ADMIN), deleteEvent);
 router.post('/:id/assign', authorize(Role.ADMIN), assignUsers);
 

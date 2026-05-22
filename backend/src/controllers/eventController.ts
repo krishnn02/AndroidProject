@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { eventService } from '../services/eventService.js';
+import { Role, Assignment } from '../models/index.js';
 
 export const createEvent = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -26,6 +27,24 @@ export const getEvent = async (req: Request, res: Response, next: NextFunction) 
 
 export const updateEvent = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    if (req.user!.role === Role.USER) {
+      // 1. Check if user is assigned to this event
+      const isAssigned = await Assignment.findOne({ user: req.user!._id, event: req.params.id });
+      if (!isAssigned) {
+        res.status(403).json({ success: false, message: 'You are not assigned to this event' });
+        return;
+      }
+
+      // 2. Check that the request body only contains allowed fields for USER role (i.e. 'themeType')
+      const allowedKeys = ['themeType'];
+      const updateKeys = Object.keys(req.body);
+      const isAllowed = updateKeys.every(key => allowedKeys.includes(key));
+      if (!isAllowed) {
+        res.status(403).json({ success: false, message: 'You are only allowed to update event themeType' });
+        return;
+      }
+    }
+
     const event = await eventService.update(req.params.id as string, req.body);
     res.json({ success: true, data: { event } });
   } catch (error) { next(error); }

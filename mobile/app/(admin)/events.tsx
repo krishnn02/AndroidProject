@@ -85,9 +85,10 @@ export default function AdminEventsScreen() {
     loadEvents();
   }, []);
 
-  const handleNewEvent = (parentId?: string) => {
+  const handleNewEvent = (parentId?: any) => {
     setEditingEvent(null);
-    setParentEventId(parentId || null);
+    const validParentId = typeof parentId === 'string' ? parentId : null;
+    setParentEventId(validParentId);
     setEventName('');
     setEventType('CULTURAL');
     setEventDept('');
@@ -200,12 +201,61 @@ export default function AdminEventsScreen() {
       if (editingEvent) {
         await eventApi.update(editingEvent._id, payload);
         Alert.alert('Success', 'Event updated successfully.');
+        setIsEditModalVisible(false);
+        loadEvents();
       } else {
-        await eventApi.create(payload);
-        Alert.alert('Success', 'Event created successfully.');
+        const { data } = await eventApi.create(payload);
+        const newEvent = data?.data?.event;
+        const newEventId = newEvent?._id;
+        loadEvents();
+        setIsEditModalVisible(false);
+
+        if (!parentEventId) {
+          // This was a main event - ask if they want to create a sub-event
+          Alert.alert(
+            'Success',
+            'Main event created successfully. Would you like to create a sub-event for this event now?',
+            [
+              {
+                text: 'No',
+                style: 'cancel'
+              },
+              {
+                text: 'Yes',
+                onPress: () => {
+                  if (newEventId) {
+                    setTimeout(() => {
+                      handleNewEvent(newEventId);
+                    }, 500);
+                  }
+                }
+              }
+            ]
+          );
+        } else {
+          // This was a sub-event - ask if they want to assign users to it
+          Alert.alert(
+            'Success',
+            'Sub-event created successfully. Would you like to assign users to this sub-event now?',
+            [
+              {
+                text: 'No',
+                style: 'cancel'
+              },
+              {
+                text: 'Yes',
+                onPress: () => {
+                  if (newEventId) {
+                    setTimeout(() => {
+                      handleAssignUsers(newEventId);
+                    }, 500);
+                  }
+                }
+              }
+            ]
+          );
+        }
       }
-      setIsEditModalVisible(false);
-      loadEvents();
     } catch (err: any) {
       setEventError(err.response?.data?.message || 'Failed to save event.');
     } finally {
@@ -282,7 +332,7 @@ export default function AdminEventsScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.title}>All Events</Text>
-          <Button size="sm" icon={<Ionicons name="add" size={20} color={colors.text} />} title="New" onPress={handleNewEvent} />
+          <Button size="sm" icon={<Ionicons name="add" size={20} color={colors.text} />} title="New" onPress={() => handleNewEvent()} />
         </View>
 
         {/* Search Input */}

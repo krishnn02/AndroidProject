@@ -23,7 +23,11 @@ class EventService {
     userId?: string;
   }): Promise<{ events: IEvent[]; total: number; page: number; totalPages: number }> {
     const { status, department, type, page = 1, limit = 20, userId } = filters;
-    const query: Record<string, unknown> = { parentEvent: null };
+    const query: Record<string, unknown> = {};
+
+    if (!userId) {
+      query.parentEvent = null;
+    }
 
     if (status) query.status = status;
     if (department) query.department = department;
