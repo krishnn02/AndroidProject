@@ -258,7 +258,7 @@ class ReportService {
     // Delete associated images from Cloudinary
     const images = await Image.find({ section: sectionId });
     for (const img of images) {
-      await imageService.deleteImage(img._id.toString()).catch(e => console.error('Failed to delete image:', e));
+      await imageService.deleteImage(img._id.toString(), userId, userRole).catch(e => console.error('Failed to delete image:', e));
     }
 
     await section.deleteOne();

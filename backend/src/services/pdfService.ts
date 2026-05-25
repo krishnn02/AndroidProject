@@ -191,7 +191,7 @@ class PdfService {
         console.log('[PDF] Warning: Network did not fully idle in 5s. Proceeding with generation.');
       }
 
-      pdfBuffer = await page.pdf({
+      const rawPdf = await page.pdf({
         format: 'A4',
         printBackground: true,
         margin: { top: '15mm', right: '15mm', bottom: '20mm', left: '15mm' },
@@ -203,6 +203,7 @@ class PdfService {
           </div>
         `,
       });
+      pdfBuffer = Buffer.from(rawPdf);
     } finally {
       await page.close();
     }
