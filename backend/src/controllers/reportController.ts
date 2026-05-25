@@ -26,21 +26,21 @@ export const getReport = async (req: Request, res: Response, next: NextFunction)
 
 export const updateReport = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const report = await reportService.update(req.params.id as string, req.body);
+    const report = await reportService.update(req.params.id as string, req.body, req.user!._id.toString(), req.user!.role);
     res.json({ success: true, data: { report } });
   } catch (error) { next(error); }
 };
 
 export const updateFrontPage = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const report = await reportService.updateFrontPage(req.params.id as string, req.body);
+    const report = await reportService.updateFrontPage(req.params.id as string, req.body, req.user!._id.toString(), req.user!.role);
     res.json({ success: true, data: { report } });
   } catch (error) { next(error); }
 };
 
 export const submitReport = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const report = await reportService.submit(req.params.id as string, req.user!._id.toString());
+    const report = await reportService.submit(req.params.id as string, req.user!._id.toString(), req.user!.role);
     res.json({ success: true, data: { report } });
   } catch (error) { next(error); }
 };
@@ -62,28 +62,28 @@ export const rejectReport = async (req: Request, res: Response, next: NextFuncti
 // ===== Sections =====
 export const addSection = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const section = await reportService.addSection(req.params.reportId as string, req.body);
+    const section = await reportService.addSection(req.params.reportId as string, req.body, req.user!._id.toString(), req.user!.role);
     res.status(201).json({ success: true, data: { section } });
   } catch (error) { next(error); }
 };
 
 export const updateSection = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const section = await reportService.updateSection(req.params.id as string, req.body);
+    const section = await reportService.updateSection(req.params.id as string, req.body, req.user!._id.toString(), req.user!.role);
     res.json({ success: true, data: { section } });
   } catch (error) { next(error); }
 };
 
 export const deleteSection = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await reportService.deleteSection(req.params.id as string);
+    await reportService.deleteSection(req.params.id as string, req.user!._id.toString(), req.user!.role);
     res.json({ success: true, message: 'Section deleted' });
   } catch (error) { next(error); }
 };
 
 export const reorderSections = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await reportService.reorderSections(req.params.reportId as string, req.body.sectionIds);
+    await reportService.reorderSections(req.params.reportId as string, req.body.sectionIds, req.user!._id.toString(), req.user!.role);
     res.json({ success: true, message: 'Sections reordered' });
   } catch (error) { next(error); }
 };
@@ -91,28 +91,63 @@ export const reorderSections = async (req: Request, res: Response, next: NextFun
 // ===== Budgets =====
 export const addBudget = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const budget = await reportService.addBudget(req.params.reportId as string, req.body);
+    const budget = await reportService.addBudget(req.params.reportId as string, req.body, req.user!._id.toString(), req.user!.role);
     res.status(201).json({ success: true, data: { budget } });
   } catch (error) { next(error); }
 };
 
 export const updateBudget = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const budget = await reportService.updateBudget(req.params.id as string, req.body);
+    const budget = await reportService.updateBudget(req.params.id as string, req.body, req.user!._id.toString(), req.user!.role);
     res.json({ success: true, data: { budget } });
   } catch (error) { next(error); }
 };
 
 export const deleteBudget = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await reportService.deleteBudget(req.params.id as string);
+    await reportService.deleteBudget(req.params.id as string, req.user!._id.toString(), req.user!.role);
     res.json({ success: true, message: 'Budget entry deleted' });
   } catch (error) { next(error); }
 };
 
 export const deleteReport = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await reportService.delete(req.params.id as string);
+    await reportService.delete(req.params.id as string, req.user!._id.toString(), req.user!.role);
     res.json({ success: true, message: 'Report deleted successfully' });
+  } catch (error) { next(error); }
+};
+
+import path from 'path';
+import fs from 'fs';
+
+export const downloadPdf = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // 1. Ensure ownership
+    await reportService.ensureOwnership(req.params.id as string, req.user!._id.toString(), req.user!.role);
+    
+    const filename = `report-${req.params.id}.pdf`;
+    const filePath = path.join(process.cwd(), 'uploads', 'reports', filename);
+    
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ success: false, message: 'File not found' });
+      return;
+    }
+    res.download(filePath, filename);
+  } catch (error) { next(error); }
+};
+
+export const downloadDocx = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // strict ownership check
+    await reportService.ensureOwnership(req.params.id as string, req.user!._id.toString(), req.user!.role);
+    
+    const filename = `report-${req.params.id}.docx`;
+    const filePath = path.join(process.cwd(), 'uploads', 'reports', filename);
+    
+    if (!fs.existsSync(filePath)) {
+      res.status(404).json({ success: false, message: 'File not found' });
+      return;
+    }
+    res.download(filePath, filename);
   } catch (error) { next(error); }
 };

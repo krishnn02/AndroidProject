@@ -38,3 +38,13 @@ export const config = {
     pass: process.env.SMTP_PASS || '',
   },
 } as const;
+
+// Strict security enforcement in production to prevent fallback token exploits
+if (config.env === 'production') {
+  if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'fallback_secret') {
+    throw new Error('FATAL SECURITY ERROR: JWT_SECRET must be explicitly defined in production mode.');
+  }
+  if (!process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET === 'fallback_refresh_secret') {
+    throw new Error('FATAL SECURITY ERROR: JWT_REFRESH_SECRET must be explicitly defined in production mode.');
+  }
+}

@@ -29,8 +29,22 @@
     },
     "scheme": "mobile",
     "plugins": [
-      ["expo-router", { "root": "./app" }],
-      "expo-secure-store"
+      [
+        "expo-router",
+        {
+          "root": "./app"
+        }
+      ],
+      "expo-secure-store",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "enableProguardInReleaseBuilds": true
+          }
+        }
+      ]
     ]
   }
 }

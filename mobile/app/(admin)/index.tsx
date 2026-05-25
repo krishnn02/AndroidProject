@@ -153,7 +153,7 @@ export default function AdminDashboardScreen() {
       if (profilePassword.trim()) {
         payload.password = profilePassword.trim();
       }
-      const { data } = await userApi.update(user!._id, payload);
+      const { data } = await userApi.updateProfile(payload);
       const updatedUser = data.data.user;
       
       updateUser(updatedUser);

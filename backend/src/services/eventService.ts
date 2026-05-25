@@ -1,6 +1,35 @@
-import { Event, type IEvent, EventStatus, Assignment } from '../models/index.js';
+import { Event, type IEvent, EventStatus, Assignment, Report } from '../models/index.js';
 import { createError } from '../middleware/error.js';
 import mongoose from 'mongoose';
+import { reportService } from './reportService.js';
+
+// Transaction helper with automatic fallback for local standalone databases
+const runInTransaction = async <T>(fn: (session: mongoose.ClientSession | null) => Promise<T>): Promise<T> => {
+  let session: mongoose.ClientSession | null = null;
+  try {
+    session = await mongoose.startSession();
+    session.startTransaction();
+  } catch (err) {
+    return fn(null);
+  }
+
+  try {
+    const result = await fn(session);
+    await session.commitTransaction();
+    return result;
+  } catch (error: any) {
+    if (error.codeName === 'NotAReplicaSet' || error.message?.includes('Transaction numbers are only allowed')) {
+      await session.endSession().catch(() => {});
+      return fn(null);
+    }
+    await session.abortTransaction().catch(() => {});
+    throw error;
+  } finally {
+    if (session) {
+      await session.endSession().catch(() => {});
+    }
+  }
+};
 
 class EventService {
   /**
@@ -22,7 +51,9 @@ class EventService {
     limit?: number;
     userId?: string;
   }): Promise<{ events: IEvent[]; total: number; page: number; totalPages: number }> {
-    const { status, department, type, page = 1, limit = 20, userId } = filters;
+    const { status, department, type, page = 1, userId } = filters;
+    let { limit = 20 } = filters;
+    if (limit > 100) limit = 100; // Strict cap to prevent DB overload
     const query: Record<string, unknown> = {};
 
     if (!userId) {
@@ -75,7 +106,19 @@ class EventService {
    * Update event
    */
   async update(eventId: string, data: Partial<IEvent>): Promise<IEvent> {
-    const event = await Event.findByIdAndUpdate(eventId, data, {
+    const allowedFields = [
+      'name', 'type', 'department', 'date', 'venue', 'status', 
+      'themeType', 'description', 'convener', 'coConvener', 
+      'facultyCoordinator', 'studentCoordinator'
+    ];
+    const filteredData: Record<string, any> = {};
+    Object.keys(data).forEach((key) => {
+      if (allowedFields.includes(key)) {
+        filteredData[key] = (data as any)[key];
+      }
+    });
+
+    const event = await Event.findByIdAndUpdate(eventId, filteredData, {
       new: true,
       runValidators: true,
     });
@@ -94,12 +137,23 @@ class EventService {
       throw createError(404, 'Event not found');
     }
 
-    // Delete sub-events
-    await Event.deleteMany({ parentEvent: eventId });
-    // Delete assignments
-    await Assignment.deleteMany({ event: eventId });
-    // Delete the event
-    await event.deleteOne();
+    await runInTransaction(async (session) => {
+      const queryOpts = session ? { session } : {};
+
+      // Find and delete all reports associated with this event
+      const reports = await Report.find({ event: eventId }).session(session || null as any);
+      for (const report of reports) {
+        // Pass 'ADMIN' to bypass ownership checks during cascade deletion
+        await reportService.delete(report._id.toString(), '', 'ADMIN', session || undefined);
+      }
+
+      // Delete sub-events
+      await Event.deleteMany({ parentEvent: eventId }, queryOpts);
+      // Delete assignments
+      await Assignment.deleteMany({ event: eventId }, queryOpts);
+      // Delete the event
+      await Event.deleteOne({ _id: eventId }, queryOpts);
+    });
   }
 
   /**

@@ -79,6 +79,9 @@ export const reportsApi = {
   approve: (id: string) => api.post(`/reports/${id}/approve`),
   reject: (id: string, note: string) => api.post(`/reports/${id}/reject`, { note }),
   generatePdf: (id: string) => api.get(`/reports/${id}/pdf`),
+  generateDocx: (id: string) => api.get(`/reports/${id}/docx`),
+  downloadPdf: (id: string) => api.get(`/reports/${id}/download/pdf`, { responseType: 'blob' }),
+  downloadDocx: (id: string) => api.get(`/reports/${id}/download/docx`, { responseType: 'blob' }),
 };
 
 // === Analytics API ===

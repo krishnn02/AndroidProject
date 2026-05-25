@@ -21,6 +21,7 @@ export function EventsPage() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [editing, setEditing] = useState<Event | null>(null);
   const [assignEvent, setAssignEvent] = useState<Event | null>(null);
+  const [deleteEventItem, setDeleteEventItem] = useState<Event | null>(null);
   const [search, setSearch] = useState('');
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -60,9 +61,12 @@ export function EventsPage() {
     setShowModal(true); setError('');
   };
 
-  const handleDelete = async (ev: Event) => {
-    if (!confirm(`Delete event "${ev.name}"?`)) return;
-    try { await eventsApi.delete(ev._id); await loadEvents(); }
+  const handleDeleteConfirm = async (ev: Event) => {
+    try { 
+      await eventsApi.delete(ev._id); 
+      setDeleteEventItem(null);
+      await loadEvents(); 
+    }
     catch { setError('Failed to delete event'); }
   };
 
@@ -146,7 +150,7 @@ export function EventsPage() {
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => openAssign(ev)} className="p-2 rounded-md hover:bg-accent transition-colors" title="Assign Users"><UserPlus className="w-4 h-4 text-muted-foreground" /></button>
                       <button onClick={() => handleEdit(ev)} className="p-2 rounded-md hover:bg-accent transition-colors" title="Edit"><Edit className="w-4 h-4 text-muted-foreground" /></button>
-                      <button onClick={() => handleDelete(ev)} className="p-2 rounded-md hover:bg-destructive/10 transition-colors" title="Delete"><Trash2 className="w-4 h-4 text-destructive" /></button>
+                      <button onClick={() => setDeleteEventItem(ev)} className="p-2 rounded-md transition-colors" style={{ backgroundColor: '#dc2626', color: '#ffffff' }} title="Delete"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </td>
                 </tr>
@@ -222,6 +226,25 @@ export function EventsPage() {
             <button onClick={handleAssign} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground h-10 px-4 py-2 text-sm font-medium w-full hover:bg-primary/90 disabled:opacity-50">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />} Assign {selectedUserIds.length} User(s)
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Warning Modal */}
+      {deleteEventItem && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-xl border bg-card shadow-lg p-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-red-600">Delete Event</h2>
+              <button onClick={() => setDeleteEventItem(null)} className="p-1 rounded-md hover:bg-accent"><X className="w-5 h-5" /></button>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Are you sure you want to delete the event <strong>{deleteEventItem.name}</strong>? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button onClick={() => setDeleteEventItem(null)} className="px-4 py-2 text-sm font-medium rounded-md border hover:bg-accent transition-colors">Cancel</button>
+              <button onClick={() => handleDeleteConfirm(deleteEventItem)} className="px-4 py-2 text-sm font-medium rounded-md bg-red-600 text-white hover:bg-red-700 transition-colors">Delete</button>
+            </div>
           </div>
         </div>
       )}

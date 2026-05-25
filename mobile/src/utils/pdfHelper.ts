@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import * as Linking from 'expo-linking';
 import { Platform, Alert } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 
 /**
  * Fixes URLs for the Android emulator.
@@ -35,106 +36,65 @@ const ensureProtocol = (url: string): string => {
   return url;
 };
 
-/**
- * Opens the PDF URL inline for preview.
- * On iOS, this uses the native Safari PDF preview directly.
- * On Android, it uses the Google Docs Viewer to display it inline instead of forcing a download.
- */
-export const openPdfPreview = async (url: string) => {
-  if (!url) {
-    Alert.alert('Error', 'No PDF URL available.');
-    return;
-  }
-
-  const cleanUrl = fixUrlForEmulator(ensureProtocol(url));
-
-  if (Platform.OS === 'android') {
-    // For Cloudinary URLs, Google Docs Viewer works great
-    if (cleanUrl.startsWith('https://')) {
-      const googleDocsUrl = `https://docs.google.com/viewer?url=${encodeURIComponent(cleanUrl)}`;
-      try {
-        await Linking.openURL(googleDocsUrl);
-        return;
-      } catch (e) {
-        console.warn('Failed to open PDF in Google Docs Viewer', e);
-      }
-    }
-
-    // For local/emulator URLs, download first then share
-    try {
-      await downloadAndSharePdf(cleanUrl, 'preview-report.pdf');
-    } catch (err) {
-      // Last resort: try direct open
-      try {
-        await Linking.openURL(cleanUrl);
-      } catch {
-        Alert.alert('Error', 'Failed to open PDF. Please try the Download option instead.');
-      }
-    }
-  } else {
-    try {
-      await Linking.openURL(cleanUrl);
-    } catch (err) {
-      Alert.alert('Error', 'Failed to open PDF link.');
-    }
-  }
-};
 
 /**
- * Downloads the PDF to the device's document directory and opens the native Share sheet.
- * This allows users on both Android and iOS to:
- * 1. Save the file to their local filesystem (e.g. "Save to Files", "Save to Downloads").
- * 2. Send it to other applications (WhatsApp, Gmail, Slack, etc.).
+ * Downloads the document to the device's local system.
  */
 export const downloadAndSharePdf = async (url: string, filename: string) => {
   if (!url) {
-    Alert.alert('Error', 'No PDF URL available to download.');
+    Alert.alert('Error', 'No URL available to download.');
     return;
   }
 
   const cleanUrl = fixUrlForEmulator(ensureProtocol(url));
 
   try {
-    const isSharingAvailable = await Sharing.isAvailableAsync();
-    if (!isSharingAvailable) {
-      Alert.alert('Sharing Unavailable', 'Opening PDF in browser instead.');
-      await Linking.openURL(cleanUrl);
-      return;
+    const isDocx = filename.endsWith('.docx');
+    const mimeType = isDocx 
+        ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
+        : 'application/pdf';
+
+    const token = await SecureStore.getItemAsync('accessToken');
+    const headers: Record<string, string> = {};
+    if (token && !cleanUrl.includes('cloudinary.com')) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const localUri = FileSystem.documentDirectory + filename;
-
-    console.log('[PDF Helper] Downloading from:', cleanUrl);
-    console.log('[PDF Helper] Saving to:', localUri);
-
-    const downloadResult = await FileSystem.downloadAsync(cleanUrl, localUri);
-    
-    if (downloadResult.status !== 200) {
-      throw new Error(`Download failed with status ${downloadResult.status}`);
+    if (Platform.OS === 'android') {
+      const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      if (!permissions.granted) {
+        Alert.alert('Permission Denied', 'Storage permission is required to save files.');
+        return;
+      }
+      
+      const localUri = FileSystem.cacheDirectory + filename;
+      const downloadResult = await FileSystem.downloadAsync(cleanUrl, localUri, { headers });
+      
+      if (downloadResult.status !== 200) throw new Error(`Download failed with status ${downloadResult.status}`);
+      
+      const base64 = await FileSystem.readAsStringAsync(downloadResult.uri, { encoding: FileSystem.EncodingType.Base64 });
+      const savedUri = await FileSystem.StorageAccessFramework.createFileAsync(permissions.directoryUri, filename, mimeType);
+      await FileSystem.writeAsStringAsync(savedUri, base64, { encoding: FileSystem.EncodingType.Base64 });
+      
+      Alert.alert('Success', `File downloaded to your selected folder: ${filename}`);
+    } else {
+      // iOS
+      const localUri = FileSystem.documentDirectory + filename;
+      const downloadResult = await FileSystem.downloadAsync(cleanUrl, localUri, { headers });
+      if (downloadResult.status !== 200) throw new Error(`Download failed with status ${downloadResult.status}`);
+      
+      const isSharingAvailable = await Sharing.isAvailableAsync();
+      if (isSharingAvailable) {
+        await Sharing.shareAsync(downloadResult.uri, {
+          mimeType,
+          dialogTitle: `Save ${filename}`,
+        });
+      } else {
+        Alert.alert('Success', 'File downloaded to app documents.');
+      }
     }
-
-    console.log('[PDF Helper] Download complete, opening share sheet');
-    
-    await Sharing.shareAsync(downloadResult.uri, {
-      mimeType: 'application/pdf',
-      dialogTitle: 'Save or Share PDF Report',
-    });
   } catch (error: any) {
-    console.error('[PDF Helper] Download and share error:', error);
-    
-    // If download fails, try opening the URL directly in browser
-    Alert.alert(
-      'Download Failed',
-      'Could not download the PDF file. Would you like to open it in a browser instead?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Open in Browser', 
-          onPress: () => Linking.openURL(cleanUrl).catch(() => {
-            Alert.alert('Error', 'Failed to open PDF.');
-          })
-        },
-      ]
-    );
+    console.error('[Helper] Download error:', error);
+    Alert.alert('Download Failed', 'Could not download the document. ' + (error.message || ''));
   }
 };

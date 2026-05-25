@@ -6,10 +6,11 @@ import { useReportStore } from '../../../src/stores/reportStore';
 import { useAuthStore } from '../../../src/stores/authStore';
 import { Card } from '../../../src/components/ui';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../../src/theme';
-import { openPdfPreview, downloadAndSharePdf } from '../../../src/utils/pdfHelper';
+import { downloadAndSharePdf } from '../../../src/utils/pdfHelper';
+import { API_BASE_URL } from '../../../src/services/api';
 
 export default function ReportsScreen() {
-  const { reports, fetchReports, isLoading, submitReport, generatePdf } = useReportStore();
+  const { reports, fetchReports, isLoading, submitReport, generatePdf, generateDocx } = useReportStore();
   const { user } = useAuthStore();
   const router = useRouter();
 
@@ -20,7 +21,7 @@ export default function ReportsScreen() {
   // Modal State
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [isOptionsVisible, setIsOptionsVisible] = useState(false);
-  const [isPdfLoading, setIsPdfLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState<'pdf' | 'docx' | null>(null);
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
   useEffect(() => {
@@ -36,29 +37,33 @@ export default function ReportsScreen() {
     }
   };
 
-  const handlePreview = async (report: any) => {
-    if (!report) return;
-    setIsPdfLoading(true);
-    try {
-      const url = await generatePdf(report._id);
-      await openPdfPreview(url);
-    } catch (err: any) {
-      Alert.alert('Preview Failed', err.message || 'Could not generate report preview.');
-    } finally {
-      setIsPdfLoading(false);
-    }
-  };
+
 
   const handleDownload = async (report: any) => {
     if (!report) return;
-    setIsPdfLoading(true);
+    setLoadingAction('pdf');
     try {
-      const url = await generatePdf(report._id);
-      await downloadAndSharePdf(url, `report-${report._id}.pdf`);
+      await generatePdf(report._id);
+      const secureUrl = `${API_BASE_URL}/reports/${report._id}/download/pdf`;
+      await downloadAndSharePdf(secureUrl, `report-${report._id}.pdf`);
     } catch (err: any) {
       Alert.alert('Download Failed', err.message || 'Could not download report.');
     } finally {
-      setIsPdfLoading(false);
+      setLoadingAction(null);
+    }
+  };
+
+  const handleDownloadDocx = async (report: any) => {
+    if (!report) return;
+    setLoadingAction('docx');
+    try {
+      await generateDocx(report._id);
+      const secureUrl = `${API_BASE_URL}/reports/${report._id}/download/docx`;
+      await downloadAndSharePdf(secureUrl, `report-${report._id}.docx`);
+    } catch (err: any) {
+      Alert.alert('Download Failed', err.message || 'Could not download Word document.');
+    } finally {
+      setLoadingAction(null);
     }
   };
 
@@ -181,7 +186,7 @@ export default function ReportsScreen() {
           style={styles.modalOverlay}
           activeOpacity={1}
           onPress={() => {
-            if (!isPdfLoading && !isSubmittingReport) {
+            if (!loadingAction && !isSubmittingReport) {
               setIsOptionsVisible(false);
             }
           }}
@@ -205,77 +210,88 @@ export default function ReportsScreen() {
                 <TouchableOpacity 
                   onPress={() => setIsOptionsVisible(false)} 
                   style={styles.closeBtn}
-                  disabled={isPdfLoading || isSubmittingReport}
+                  disabled={!!loadingAction || isSubmittingReport}
                 >
                   <Ionicons name="close" size={24} color={colors.text} />
                 </TouchableOpacity>
               </View>
 
+              {/* Rejection Reason Alert Banner */}
+              {selectedReport?.status === 'REJECTED' && selectedReport.rejectionNote && (
+                <View style={styles.rejectionBanner}>
+                  <Ionicons name="warning-outline" size={18} color={colors.error} style={{ marginRight: spacing.sm }} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.rejectionBannerTitle}>Rejection Reason:</Text>
+                    <Text style={styles.rejectionBannerText}>{selectedReport.rejectionNote}</Text>
+                  </View>
+                </View>
+              )}
+
               {/* Option Actions List */}
               <View style={styles.modalOptionsContainer}>
-                {/* 1. Preview Option */}
+
+ 
+                {/* 2. Download PDF Option */}
                 <TouchableOpacity 
-                  style={[styles.optionItem, (isPdfLoading || isSubmittingReport) && styles.optionItemDisabled]}
-                  onPress={() => handlePreview(selectedReport)}
-                  disabled={isPdfLoading || isSubmittingReport}
+                  style={[styles.optionItem, (!!loadingAction || isSubmittingReport) && styles.optionItemDisabled]}
+                  onPress={() => handleDownload(selectedReport)}
+                  disabled={!!loadingAction || isSubmittingReport}
                 >
-                  <View style={[styles.optionIconContainer, { backgroundColor: colors.info + '15' }]}>
-                    {isPdfLoading ? (
-                      <ActivityIndicator size="small" color={colors.info} />
+                  <View style={[styles.optionIconContainer, { backgroundColor: colors.success + '15' }]}>
+                    {loadingAction === 'pdf' ? (
+                      <ActivityIndicator size="small" color={colors.success} />
                     ) : (
-                      <Ionicons name="eye-outline" size={20} color={colors.info} />
+                      <Ionicons name="download-outline" size={20} color={colors.success} />
                     )}
                   </View>
-                  <Text style={styles.optionText}>Preview Report</Text>
+                  <Text style={styles.optionText}>Download PDF Report</Text>
                 </TouchableOpacity>
-
-                {/* 2 & 3. Edit & Submit Options (Only for DRAFT or REJECTED) */}
+ 
+                {/* 3. Download DOCX Option */}
+                <TouchableOpacity 
+                  style={[styles.optionItem, (!!loadingAction || isSubmittingReport) && styles.optionItemDisabled]}
+                  onPress={() => handleDownloadDocx(selectedReport)}
+                  disabled={!!loadingAction || isSubmittingReport}
+                >
+                  <View style={[styles.optionIconContainer, { backgroundColor: '#F9731615' }]}>
+                    {loadingAction === 'docx' ? (
+                      <ActivityIndicator size="small" color="#F97316" />
+                    ) : (
+                      <Ionicons name="document-text-outline" size={20} color="#F97316" />
+                    )}
+                  </View>
+                  <Text style={styles.optionText}>Download Word Document (DOCX)</Text>
+                </TouchableOpacity>
+ 
+                {/* 4 & 5. Edit & Submit Options (Only for DRAFT or REJECTED) */}
                 {(selectedReport?.status === 'DRAFT' || selectedReport?.status === 'REJECTED') && (
                   <>
                     <TouchableOpacity 
-                      style={[styles.optionItem, (isPdfLoading || isSubmittingReport) && styles.optionItemDisabled]}
+                      style={[styles.optionItem, (!!loadingAction || isSubmittingReport) && styles.optionItemDisabled]}
                       onPress={() => handleEditReport(selectedReport)}
-                      disabled={isPdfLoading || isSubmittingReport}
+                      disabled={!!loadingAction || isSubmittingReport}
                     >
                       <View style={[styles.optionIconContainer, { backgroundColor: colors.primary + '15' }]}>
                         <Ionicons name="create-outline" size={20} color={colors.primaryLight} />
                       </View>
-                      <Text style={styles.optionText}>Edit Report</Text>
+                      <Text style={styles.optionText}>Edit Report Draft</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity 
-                      style={[styles.optionItem, (isPdfLoading || isSubmittingReport) && styles.optionItemDisabled]}
+                      style={[styles.optionItem, (!!loadingAction || isSubmittingReport) && styles.optionItemDisabled]}
                       onPress={() => handleSubmitReport(selectedReport)}
-                      disabled={isPdfLoading || isSubmittingReport}
+                      disabled={!!loadingAction || isSubmittingReport}
                     >
-                      <View style={[styles.optionIconContainer, { backgroundColor: colors.success + '15' }]}>
+                      <View style={[styles.optionIconContainer, { backgroundColor: '#0D948815' }]}>
                         {isSubmittingReport ? (
-                          <ActivityIndicator size="small" color={colors.success} />
+                          <ActivityIndicator size="small" color="#0D9488" />
                         ) : (
-                          <Ionicons name="checkmark-circle-outline" size={20} color={colors.success} />
+                          <Ionicons name="checkmark-circle-outline" size={20} color="#0D9488" />
                         )}
                       </View>
-                      <Text style={styles.optionText}>Submit Report</Text>
+                      <Text style={styles.optionText}>Submit Report for Approval</Text>
                     </TouchableOpacity>
                   </>
-                )}
-
-                {/* 4. Download Option (Only for APPROVED) */}
-                {selectedReport?.status === 'APPROVED' && (
-                  <TouchableOpacity 
-                    style={[styles.optionItem, (isPdfLoading || isSubmittingReport) && styles.optionItemDisabled]}
-                    onPress={() => handleDownload(selectedReport)}
-                    disabled={isPdfLoading || isSubmittingReport}
-                  >
-                    <View style={[styles.optionIconContainer, { backgroundColor: colors.success + '15' }]}>
-                      {isPdfLoading ? (
-                        <ActivityIndicator size="small" color={colors.success} />
-                      ) : (
-                        <Ionicons name="download-outline" size={20} color={colors.success} />
-                      )}
-                    </View>
-                    <Text style={styles.optionText}>Download Report</Text>
-                  </TouchableOpacity>
                 )}
               </View>
             </Card>
@@ -424,5 +440,25 @@ const styles = StyleSheet.create({
     fontSize: fontSize.md,
     fontWeight: fontWeight.semibold,
     color: colors.text,
+  },
+  rejectionBanner: {
+    flexDirection: 'row',
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FCA5A5',
+    borderWidth: 1,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    alignItems: 'flex-start',
+  },
+  rejectionBannerTitle: {
+    fontSize: fontSize.sm,
+    fontWeight: fontWeight.bold,
+    color: colors.error,
+    marginBottom: 2,
+  },
+  rejectionBannerText: {
+    fontSize: fontSize.sm,
+    color: '#7F1D1D',
   },
 });

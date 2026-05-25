@@ -8,21 +8,21 @@ export const uploadImages = async (req: Request, res: Response, next: NextFuncti
       res.status(400).json({ success: false, message: 'No images provided' });
       return;
     }
-    const images = await imageService.uploadImages(req.params.sectionId as string, files);
+    const images = await imageService.uploadImages(req.params.sectionId as string, files, req.user!._id.toString(), req.user!.role);
     res.status(201).json({ success: true, data: { images } });
   } catch (error) { next(error); }
 };
 
 export const deleteImage = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await imageService.deleteImage(req.params.id as string);
+    await imageService.deleteImage(req.params.id as string, req.user!._id.toString(), req.user!.role);
     res.json({ success: true, message: 'Image deleted' });
   } catch (error) { next(error); }
 };
 
 export const reorderImages = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await imageService.reorderImages(req.params.sectionId as string, req.body.imageIds);
+    await imageService.reorderImages(req.params.sectionId as string, req.body.imageIds, req.user!._id.toString(), req.user!.role);
     res.json({ success: true, message: 'Images reordered' });
   } catch (error) { next(error); }
 };

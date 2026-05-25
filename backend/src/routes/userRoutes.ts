@@ -1,11 +1,17 @@
 import { Router } from 'express';
-import { getUsers, getUser, updateUser, deleteUser } from '../controllers/userController.js';
+import { getUsers, getUser, updateUser, deleteUser, updateProfile } from '../controllers/userController.js';
 import { authenticate, authorize } from '../middleware/auth.js';
 import { Role } from '../models/index.js';
 
 const router = Router();
 
-router.use(authenticate, authorize(Role.ADMIN));
+router.use(authenticate);
+
+// Self-service route (any authenticated user)
+router.patch('/me', updateProfile);
+
+// Admin-only routes
+router.use(authorize(Role.ADMIN));
 
 router.get('/', getUsers);
 router.get('/:id', getUser);

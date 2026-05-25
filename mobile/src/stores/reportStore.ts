@@ -30,6 +30,7 @@ interface Report {
   sections?: ReportSection[];
   budgets?: Budget[];
   pdfUrl?: string;
+  docxUrl?: string;
   rejectionNote?: string;
   createdAt?: string;
 }
@@ -52,6 +53,7 @@ interface ReportState {
   approveReport: (id: string) => Promise<void>;
   rejectReport: (id: string, note: string) => Promise<void>;
   generatePdf: (id: string) => Promise<string>;
+  generateDocx: (id: string) => Promise<string>;
   deleteReport: (id: string) => Promise<void>;
   addSection: (reportId: string, data: Record<string, any>) => Promise<void>;
   updateSection: (sectionId: string, data: Record<string, any>) => Promise<void>;
@@ -181,6 +183,23 @@ export const useReportStore = create<ReportState>()((set, get) => ({
     } catch (error: any) {
       const message = error.response?.data?.message || error.message || 'PDF generation failed';
       console.error('[ReportStore] PDF generation failed:', message, error);
+      set({ error: message, isLoading: false });
+      throw error;
+    }
+  },
+
+  generateDocx: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      console.log('[ReportStore] Generating DOCX for report:', id);
+      const { data } = await reportApi.generateDocx(id);
+      const docxUrl = data.data.docxUrl;
+      console.log('[ReportStore] DOCX generated successfully:', docxUrl);
+      set({ isLoading: false });
+      return docxUrl;
+    } catch (error: any) {
+      const message = error.response?.data?.message || error.message || 'DOCX generation failed';
+      console.error('[ReportStore] DOCX generation failed:', message, error);
       set({ error: message, isLoading: false });
       throw error;
     }

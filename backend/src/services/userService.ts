@@ -28,8 +28,28 @@ class UserService {
     const user = await User.findById(userId).select('+password');
     if (!user) throw createError(404, 'User not found');
 
+    const allowedFields = ['name', 'department', 'college', 'phone', 'role', 'isActive'];
+    
     Object.keys(data).forEach((key) => {
-      user.set(key, data[key]);
+      if (allowedFields.includes(key)) {
+        user.set(key, data[key]);
+      }
+    });
+
+    await user.save();
+    return user;
+  }
+
+  async updateProfile(userId: string, data: Record<string, any>) {
+    const user = await User.findById(userId);
+    if (!user) throw createError(404, 'User not found');
+
+    const allowedFields = ['name', 'department', 'college', 'phone'];
+    
+    Object.keys(data).forEach((key) => {
+      if (allowedFields.includes(key)) {
+        user.set(key, data[key]);
+      }
     });
 
     await user.save();

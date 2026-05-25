@@ -12,7 +12,7 @@ const getBaseUrl = () => {
   return `http://${host}:5000/api`;
 };
 
-const API_BASE_URL = getBaseUrl();
+export const API_BASE_URL = getBaseUrl();
 console.log('[API] Resolved Base URL:', API_BASE_URL);
 
 const api = axios.create({

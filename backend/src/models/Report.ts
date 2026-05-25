@@ -27,6 +27,7 @@ export interface IReport extends Document {
   template?: mongoose.Types.ObjectId;
   frontPage: IFrontPage;
   pdfUrl?: string;
+  docxUrl?: string;
   submittedAt?: Date;
   approvedAt?: Date;
   approvedBy?: mongoose.Types.ObjectId;
@@ -63,6 +64,7 @@ const reportSchema = new Schema<IReport>(
     template: { type: Schema.Types.ObjectId, ref: 'Template' },
     frontPage: { type: frontPageSchema, default: {} },
     pdfUrl: String,
+    docxUrl: String,
     submittedAt: Date,
     approvedAt: Date,
     approvedBy: { type: Schema.Types.ObjectId, ref: 'User' },
@@ -95,5 +97,7 @@ reportSchema.virtual('budgets', {
 reportSchema.index({ event: 1 });
 reportSchema.index({ createdBy: 1 });
 reportSchema.index({ status: 1 });
+reportSchema.index({ event: 1, createdAt: -1 });
+reportSchema.index({ createdAt: -1 });
 
 export const Report = mongoose.model<IReport>('Report', reportSchema);

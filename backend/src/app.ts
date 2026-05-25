@@ -21,7 +21,13 @@ import path from 'path';
 const app = express();
 
 // Static files
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+app.use('/uploads', (req, res, next) => {
+  if (req.path.startsWith('/reports/')) {
+    res.status(403).json({ success: false, message: 'Direct access to reports is forbidden. Use the download API.' });
+    return;
+  }
+  next();
+}, express.static(path.join(process.cwd(), 'uploads')));
 
 // Security
 app.use(helmet());
@@ -33,7 +39,7 @@ app.use(cors({
 }));
 
 // Rate limiting
-app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 200 }));
+app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 2000 }));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));

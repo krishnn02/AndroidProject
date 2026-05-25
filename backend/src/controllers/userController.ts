@@ -22,6 +22,13 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
   } catch (error) { next(error); }
 };
 
+export const updateProfile = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const user = await userService.updateProfile(req.user!._id.toString(), req.body);
+    res.json({ success: true, data: { user } });
+  } catch (error) { next(error); }
+};
+
 export const deleteUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const permanent = req.query.permanent === 'true';

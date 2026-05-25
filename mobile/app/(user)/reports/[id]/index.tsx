@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useReportStore } from '../../../../src/stores/reportStore';
 import { Card, Button } from '../../../../src/components/ui';
 import { colors, spacing, fontSize, fontWeight } from '../../../../src/theme';
-import { openPdfPreview, downloadAndSharePdf } from '../../../../src/utils/pdfHelper';
+import { downloadAndSharePdf } from '../../../../src/utils/pdfHelper';
 
 export default function ReportBuilderScreen() {
   const { id } = useLocalSearchParams();
@@ -29,15 +29,6 @@ export default function ReportBuilderScreen() {
         }
       }
     ]);
-  };
-
-  const handleGeneratePdf = async () => {
-    try {
-      const url = await generatePdf(id as string);
-      if (url) await openPdfPreview(url);
-    } catch (err: any) {
-      Alert.alert('Error', 'Failed to preview PDF: ' + (err.message || err));
-    }
   };
 
   const handleDownloadPdf = async () => {
@@ -93,20 +84,30 @@ export default function ReportBuilderScreen() {
       <View style={styles.actions}>
         <View style={styles.pdfButtonsRow}>
           <Button 
-            title="Preview PDF" 
-            variant="outline" 
-            icon={<Ionicons name="eye-outline" size={20} color={colors.primary} />}
-            onPress={handleGeneratePdf}
-            loading={isSaving}
-            style={styles.halfBtn}
-          />
-          <Button 
-            title="Download PDF" 
+            title="DL PDF" 
             variant="outline" 
             icon={<Ionicons name="download-outline" size={20} color={colors.primary} />}
             onPress={handleDownloadPdf}
             loading={isSaving}
-            style={styles.halfBtn}
+            style={styles.actionBtn}
+          />
+          <Button 
+            title="DL DOCX" 
+            variant="outline" 
+            icon={<Ionicons name="document-text-outline" size={20} color={colors.primary} />}
+            onPress={async () => {
+              try {
+                // generate docx api gives url, same structure as PDF mostly, let's just use docx endpoint.
+                // Assuming docx download follows a similar url structure in backend
+                // I need to use the docx download url.
+                const url = currentReport.docxUrl || `http://10.0.2.2:5000/api/reports/${id}/download/docx`;
+                await downloadAndSharePdf(url, `report-${id}.docx`);
+              } catch (err: any) {
+                Alert.alert('Error', 'Failed to download DOCX: ' + (err.message || err));
+              }
+            }}
+            loading={isSaving}
+            style={styles.actionBtn}
           />
         </View>
         
@@ -141,7 +142,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: spacing.md,
   },
-  halfBtn: {
+  actionBtn: {
     flex: 1,
   },
 });

@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { openPdfPreview, downloadAndSharePdf } from '../../src/utils/pdfHelper';
+import { downloadAndSharePdf } from '../../src/utils/pdfHelper';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { reportApi, imageApi, eventApi } from '../../src/services';
 import { useReportStore } from '../../src/stores/reportStore';
@@ -20,13 +20,39 @@ interface EventDetailField {
 
 const DEFAULT_EVENT_DETAILS: EventDetailField[] = [
   { key: 'Event Name', value: '', editable: false },
-  { key: 'Date of the Event', value: '', editable: false },
-  { key: 'Venue of the Event', value: '', editable: false },
-  { key: 'Speaker', value: '', editable: false },
-  { key: 'Event Convenor', value: '', editable: false },
-  { key: 'Faculty Coordinator', value: '', editable: false },
-  { key: 'Target Audience', value: '', editable: false },
+  { key: 'Date', value: '', editable: false },
+  { key: 'Venue', value: '', editable: false },
+  { key: 'Event Type', value: '', editable: false },
+  { key: 'Organized By', value: '', editable: false },
+  { key: 'Event Objectives', value: '', editable: false },
+  { key: 'Eminent Judges / Guests', value: '', editable: false },
+  { key: 'Convener', value: '', editable: false },
+  { key: 'Co-Convener', value: '', editable: false },
+  { key: 'Program Faculty Coordinators', value: '', editable: false },
+  { key: 'Supporting Faculty Members', value: '', editable: false },
+  { key: 'Program Student Coordinators/ Volunteers', value: '', editable: false },
+  { key: 'Social Media Coverage Link', value: '', editable: false },
 ];
+
+const STANDARD_SECTIONS = [
+  'About the Event',
+  'Event Objectives',
+  'Eminent Judges / Guests',
+  'Key Outcomes / Highlights',
+  'Social Media Coverage',
+  'Photographs / Media / Reel',
+  'Feedback Summary (Optional)',
+  'Conclusion',
+];
+
+const THEMES = [
+  { id: 'CORPORATE', name: 'Corporate (Default)', desc: 'Executive navy & royal blue accents. Professional & clean.', colors: ['#1E3A8A', '#3B82F6', '#64748B'] },
+  { id: 'CULTURAL', name: 'Cultural / Creative', desc: 'Warm magenta & gold tones. Elegant & artistic.', colors: ['#9D174D', '#F59E0B', '#EF4444'] },
+  { id: 'TECHNICAL', name: 'Technical / Modern', desc: 'Teal, slate gray & code accents. Sleek & futuristic.', colors: ['#0F766E', '#06B6D4', '#1E293B'] },
+  { id: 'SEMINAR', name: 'Academic Seminar', desc: 'Indigo & classic blue borders. Formal & structural.', colors: ['#4338CA', '#6366F1', '#475569'] },
+  { id: 'SUSTAINABLE', name: 'Sustainable / Eco', desc: 'Light to dark green gradient accents.', colors: ['#86EFAC', '#22C55E', '#14532D'] },
+  { id: 'AQUA', name: 'Aqua Wave', desc: 'Deep sea blue and cyan accents. Fluid & refreshing.', colors: ['#67E8F9', '#06B6D4', '#083344'] },
+] as const;
 
 interface ContentBlock {
   _id?: string;
@@ -47,10 +73,10 @@ export default function CreateReportScreen() {
   const [isLoadingData, setIsLoadingData] = useState(true);
 
   // Section 0: Theme selector state
-  const [themeType, setThemeType] = useState<'CORPORATE' | 'CULTURAL' | 'TECHNICAL' | 'SEMINAR' | 'SUSTAINABLE'>('CORPORATE');
+  const [themeType, setThemeType] = useState<'CORPORATE' | 'CULTURAL' | 'TECHNICAL' | 'SEMINAR' | 'SUSTAINABLE' | 'AQUA'>('CORPORATE');
 
   // Section 1: Logos
-  const [logos, setLogos] = useState<(string | null)[]>([null, null, null, null]);
+  const [logos, setLogos] = useState<(string | null)[]>([null, null, null, null, null]);
 
   // Section 2: Title
   const [title, setTitle] = useState('');
@@ -59,9 +85,9 @@ export default function CreateReportScreen() {
   const [eventDetails, setEventDetails] = useState<EventDetailField[]>(DEFAULT_EVENT_DETAILS);
 
   // Section 4: Content blocks
-  const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([
-    { heading: 'About the Event', text: '', images: [null, null] }
-  ]);
+  const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>(
+    STANDARD_SECTIONS.map(heading => ({ heading, text: '', images: [null, null] }))
+  );
 
   // Track deleted sections
   const [deletedSectionIds, setDeletedSectionIds] = useState<string[]>([]);
@@ -91,12 +117,18 @@ export default function CreateReportScreen() {
         // Formulate pre-populated values from the event object
         const prepopulated = {
           'Event Name': event.name || '',
-          'Date of the Event': event.date && !isNaN(Date.parse(event.date)) ? new Date(event.date).toISOString().split('T')[0] : '',
-          'Venue of the Event': event.venue || '',
-          'Speaker': event.speaker || '',
-          'Event Convenor': event.convener || '',
-          'Faculty Coordinator': event.facultyCoordinator || '',
-          'Target Audience': event.targetAudience || '',
+          'Date': event.date && !isNaN(Date.parse(event.date)) ? new Date(event.date).toISOString().split('T')[0] : '',
+          'Venue': event.venue || '',
+          'Event Type': event.type || '',
+          'Organized By': event.department || '',
+          'Event Objectives': '',
+          'Eminent Judges / Guests': '',
+          'Convener': event.convener || '',
+          'Co-Convener': event.coConvener || '',
+          'Program Faculty Coordinators': event.facultyCoordinator || '',
+          'Supporting Faculty Members': '',
+          'Program Student Coordinators/ Volunteers': [event.studentCoordinator, ...(event.volunteers || [])].filter(Boolean).join(', '),
+          'Social Media Coverage Link': event.socialMediaLinks ? Object.values(event.socialMediaLinks).join(', ') : '',
         };
 
         if (reportId) {
@@ -109,7 +141,7 @@ export default function CreateReportScreen() {
           // Setup logos
           const savedLogos = report.frontPage?.logos || [];
           const paddedLogos = [...savedLogos];
-          while (paddedLogos.length < 4) {
+          while (paddedLogos.length < 5) {
             paddedLogos.push(null);
           }
           setLogos(paddedLogos);
@@ -131,17 +163,29 @@ export default function CreateReportScreen() {
           setEventDetails(finalDetails);
 
           // Setup sections
-          if (report.sections && report.sections.length > 0) {
-            const sorted = [...report.sections].sort((a, b) => a.sortOrder - b.sortOrder);
-            const blocks = sorted.map((sec: any) => ({
-              _id: sec._id,
-              heading: sec.heading || '',
-              text: sec.content?.paragraphs?.join('\n\n') || '',
-              images: sec.images?.map((img: any) => img.url) || [null, null],
-              originalImages: sec.images || []
-            }));
-            setContentBlocks(blocks);
-          }
+          const savedSections = report.sections || [];
+          const sorted = [...savedSections].sort((a, b) => a.sortOrder - b.sortOrder);
+          const savedBlocks = sorted.map((sec: any) => ({
+            _id: sec._id,
+            heading: sec.heading || '',
+            text: sec.content?.paragraphs?.join('\n\n') || '',
+            images: sec.images?.map((img: any) => img.url) || [null, null],
+            originalImages: sec.images || []
+          }));
+
+          const finalBlocks = [...savedBlocks];
+          STANDARD_SECTIONS.forEach(heading => {
+            if (!savedBlocks.some(b => b.heading.toLowerCase() === heading.toLowerCase())) {
+              finalBlocks.push({
+                _id: undefined,
+                heading,
+                text: '',
+                images: [null, null],
+                originalImages: []
+              });
+            }
+          });
+          setContentBlocks(finalBlocks);
         } else {
           // New report creation scenario
           setTitle(event.name || '');
@@ -167,7 +211,6 @@ export default function CreateReportScreen() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
-      allowsEditing: true,
     });
     if (!result.canceled && result.assets[0]) {
       const updated = [...logos];
@@ -336,12 +379,9 @@ export default function CreateReportScreen() {
       if (!block.heading.trim()) {
         err.heading = 'Section heading is required.';
       }
-      if (!block.text.trim()) {
-        err.text = 'Section content text is required.';
-      }
       return err;
     });
-    if (newBlocksErrors.some(err => err.heading || err.text)) {
+    if (newBlocksErrors.some(err => err.heading)) {
       setBlocksErrors(newBlocksErrors);
       hasError = true;
     }
@@ -472,7 +512,7 @@ export default function CreateReportScreen() {
       try {
         const pdfUrl = await generatePdf(activeReportId);
         Alert.alert('Success!', 'Report created and PDF generated.', [
-          { text: 'Preview PDF', onPress: () => openPdfPreview(pdfUrl) },
+
           { text: 'Download PDF', onPress: () => downloadAndSharePdf(pdfUrl, `report-${activeReportId}.pdf`) },
           { text: 'Done', onPress: () => router.back() },
         ]);
@@ -512,21 +552,36 @@ export default function CreateReportScreen() {
           <Text style={styles.sectionTitle}>Select Report Theme</Text>
         </View>
         <Text style={styles.sectionHint}>Select the theme style to be applied to the background and layout</Text>
-        <View style={styles.themeGrid}>
-          {(['CORPORATE', 'CULTURAL', 'TECHNICAL', 'SEMINAR', 'SUSTAINABLE'] as const).map((t) => (
-            <TouchableOpacity
-              key={t}
-              style={[
-                styles.themeBtn,
-                themeType === t && styles.themeBtnActive,
-              ]}
-              onPress={() => setThemeType(t)}
-            >
-              <Text style={[styles.themeBtnText, themeType === t && styles.themeBtnTextActive]}>
-                {t === 'CORPORATE' ? 'Default (Corporate)' : t.charAt(0) + t.slice(1).toLowerCase()}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.themeList}>
+          {THEMES.map((theme) => {
+            const isSelected = themeType === theme.id;
+            return (
+              <TouchableOpacity
+                key={theme.id}
+                style={[
+                  styles.themeCard,
+                  isSelected && styles.themeCardActive,
+                ]}
+                onPress={() => setThemeType(theme.id)}
+              >
+                <View style={styles.themeCardHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.themeCardName, isSelected && styles.themeCardNameActive]}>
+                      {theme.name}
+                    </Text>
+                    <Text style={[styles.themeCardDesc, isSelected && styles.themeCardDescActive]}>
+                      {theme.desc}
+                    </Text>
+                  </View>
+                  <View style={styles.colorSwatches}>
+                    {theme.colors.map((c, idx) => (
+                      <View key={idx} style={[styles.colorDot, { backgroundColor: c, marginLeft: idx === 0 ? 0 : -6 }]} />
+                    ))}
+                  </View>
+                </View>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </View>
 
@@ -545,8 +600,10 @@ export default function CreateReportScreen() {
                   <RNImage source={{ uri }} style={styles.logoPreview} />
                 ) : (
                   <View style={styles.logoPlaceholder}>
-                    <Ionicons name="add" size={28} color={colors.textMuted} />
-                    <Text style={styles.logoLabel}>{idx === logos.length - 1 ? 'Main' : `Logo ${idx + 1}`}</Text>
+                    <Ionicons name="cloud-upload-outline" size={28} color={colors.primary} />
+                    <Text style={[styles.logoLabel, { color: colors.primary, marginTop: 4, textAlign: 'center' }]}>
+                      {idx === logos.length - 1 ? 'Tap to add\nMain Logo' : `Tap to add\nLogo ${idx + 1}`}
+                    </Text>
                   </View>
                 )}
               </TouchableOpacity>
@@ -943,4 +1000,55 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: { opacity: 0.6 },
   submitText: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: 'white' },
+
+  // New Theme Card Styles
+  themeList: {
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  themeCard: {
+    backgroundColor: colors.bg,
+    borderRadius: borderRadius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  themeCardActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '08',
+  },
+  themeCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+  },
+  themeCardName: {
+    fontSize: fontSize.md,
+    fontWeight: fontWeight.bold,
+    color: colors.text,
+    marginBottom: 2,
+  },
+  themeCardNameActive: {
+    color: colors.primary,
+  },
+  themeCardDesc: {
+    fontSize: fontSize.xs,
+    color: colors.textSecondary,
+    lineHeight: 16,
+  },
+  themeCardDescActive: {
+    color: colors.text,
+  },
+  colorSwatches: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  colorDot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: colors.bgCard,
+  },
 });

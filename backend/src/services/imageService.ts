@@ -1,7 +1,8 @@
 import cloudinary from '../config/cloudinary.js';
-import { Image, type IImage } from '../models/index.js';
+import { Image, type IImage, ReportSection, ReportStatus } from '../models/index.js';
 import { createError } from '../middleware/error.js';
 import fs from 'fs/promises';
+import { reportService } from './reportService.js';
 
 class ImageService {
   /**
@@ -9,8 +10,18 @@ class ImageService {
    */
   async uploadImages(
     sectionId: string,
-    files: Express.Multer.File[]
+    files: Express.Multer.File[],
+    userId: string,
+    userRole: string
   ): Promise<IImage[]> {
+    const section = await ReportSection.findById(sectionId);
+    if (!section) throw createError(404, 'Section not found');
+
+    const report = await reportService.ensureOwnership(section.report.toString(), userId, userRole);
+    if (report.status === ReportStatus.APPROVED || report.status === ReportStatus.SUBMITTED) {
+      throw createError(400, 'Cannot upload images to a submitted or approved report');
+    }
+
     const images: IImage[] = [];
 
     // Get current max sort order
@@ -60,9 +71,17 @@ class ImageService {
   /**
    * Delete image from Cloudinary and DB
    */
-  async deleteImage(imageId: string): Promise<void> {
+  async deleteImage(imageId: string, userId: string, userRole: string): Promise<void> {
     const image = await Image.findById(imageId);
     if (!image) throw createError(404, 'Image not found');
+
+    const section = await ReportSection.findById(image.section);
+    if (!section) throw createError(404, 'Section not found');
+
+    const report = await reportService.ensureOwnership(section.report.toString(), userId, userRole);
+    if (report.status === ReportStatus.APPROVED || report.status === ReportStatus.SUBMITTED) {
+      throw createError(400, 'Cannot delete images of a submitted or approved report');
+    }
 
     // Delete from Cloudinary
     try {
@@ -77,7 +96,15 @@ class ImageService {
   /**
    * Reorder images within a section
    */
-  async reorderImages(sectionId: string, imageIds: string[]): Promise<void> {
+  async reorderImages(sectionId: string, imageIds: string[], userId: string, userRole: string): Promise<void> {
+    const section = await ReportSection.findById(sectionId);
+    if (!section) throw createError(404, 'Section not found');
+
+    const report = await reportService.ensureOwnership(section.report.toString(), userId, userRole);
+    if (report.status === ReportStatus.APPROVED || report.status === ReportStatus.SUBMITTED) {
+      throw createError(400, 'Cannot reorder images of a submitted or approved report');
+    }
+
     const bulkOps = imageIds.map((id, index) => ({
       updateOne: {
         filter: { _id: id, section: sectionId },

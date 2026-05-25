@@ -5,14 +5,14 @@ import { reportApi } from '../../src/services';
 import { useReportStore } from '../../src/stores/reportStore';
 import { Card, Button } from '../../src/components/ui';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../src/theme';
-import { openPdfPreview, downloadAndSharePdf } from '../../src/utils/pdfHelper';
+import { downloadAndSharePdf } from '../../src/utils/pdfHelper';
 
 export default function AdminReportsScreen() {
   const [reports, setReports] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('ALL'); // ALL, SUBMITTED, APPROVED, REJECTED
   
-  const { approveReport, rejectReport, generatePdf } = useReportStore();
+  const { approveReport, rejectReport, generatePdf, generateDocx } = useReportStore();
 
   const loadReports = async () => {
     setIsLoading(true);
@@ -70,27 +70,49 @@ export default function AdminReportsScreen() {
 
   const handleViewPdf = async (report: any) => {
     try {
-      let url = report.pdfUrl;
-      if (!url) {
-        Alert.alert('Generating', 'Generating PDF report, please wait...');
-        url = await generatePdf(report._id);
-      }
-      if (!url) {
-        Alert.alert('Error', 'Failed to generate PDF for this report.');
-        return;
-      }
-      
       Alert.alert(
-        'Report PDF Options',
-        'Choose how you want to access the PDF report.',
+        'Report Options',
+        'Choose how you want to access the report.',
         [
-          { text: 'Preview Inline', onPress: () => openPdfPreview(url) },
-          { text: 'Download & Share', onPress: () => downloadAndSharePdf(url, `report-${report._id}.pdf`) },
+
+          {
+            text: 'Download PDF',
+            onPress: async () => {
+              try {
+                let url = report.pdfUrl;
+                if (!url) {
+                  url = await generatePdf(report._id);
+                }
+                if (url) {
+                  downloadAndSharePdf(url, `report-${report._id}.pdf`);
+                } else {
+                  Alert.alert('Error', 'Failed to generate PDF for this report.');
+                }
+              } catch (e: any) {
+                Alert.alert('Error', 'Failed to download PDF: ' + (e.message || e));
+              }
+            }
+          },
+          {
+            text: 'Download Word (DOCX)',
+            onPress: async () => {
+              try {
+                const url = await generateDocx(report._id);
+                if (url) {
+                  downloadAndSharePdf(url, `report-${report._id}.docx`);
+                } else {
+                  Alert.alert('Error', 'Failed to generate Word document for this report.');
+                }
+              } catch (e: any) {
+                Alert.alert('Error', 'Failed to generate Word document: ' + (e.message || e));
+              }
+            }
+          },
           { text: 'Cancel', style: 'cancel' }
         ]
       );
     } catch (error: any) {
-      Alert.alert('Error', 'Failed to generate/open PDF: ' + (error.message || error));
+      Alert.alert('Error', 'Failed to open options: ' + (error.message || error));
     }
   };
 
@@ -147,7 +169,7 @@ export default function AdminReportsScreen() {
             </View>
 
             <View style={styles.actionsRow}>
-              <Button variant="outline" size="sm" title="View PDF" onPress={() => handleViewPdf(report)} style={styles.actionBtn} icon={<Ionicons name="document" size={16} color={colors.primary} />} />
+              <Button variant="outline" size="sm" title="Options" onPress={() => handleViewPdf(report)} style={styles.actionBtn} icon={<Ionicons name="document-text-outline" size={16} color={colors.primary} />} />
               {report.status === 'SUBMITTED' && (
                 <>
                   <Button variant="outline" size="sm" title="Reject" onPress={() => handleReject(report._id)} style={[styles.actionBtn, { borderColor: colors.error }]} />

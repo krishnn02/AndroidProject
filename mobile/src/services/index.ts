@@ -65,6 +65,9 @@ export const reportApi = {
   generatePdf: (id: string) =>
     api.get(`/reports/${id}/pdf`),
 
+  generateDocx: (id: string) =>
+    api.get(`/reports/${id}/docx`),
+
   delete: (id: string) =>
     api.delete(`/reports/${id}`),
 
@@ -137,6 +140,9 @@ export const userApi = {
 
   create: (data: Record<string, any>) =>
     api.post('/auth/register', data),
+
+  updateProfile: (data: Record<string, any>) =>
+    api.patch('/users/me', data),
 
   update: (id: string, data: Record<string, any>) =>
     api.patch(`/users/${id}`, data),

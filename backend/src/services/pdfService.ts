@@ -53,6 +53,30 @@ Handlebars.registerHelper('isLast', function (this: any, options: any) {
 // Subtract helper for logo count math
 Handlebars.registerHelper('subtract', (a: number, b: number) => a - b);
 
+/**
+ * Optimizes Cloudinary URLs for document generation.
+ * Shrinks dimensions, converts to native JPEG, and applies high/eco-compression.
+ */
+function optimizeCloudinaryUrl(url: string, type: 'logo' | 'section'): string {
+  if (!url || typeof url !== 'string' || !url.includes('res.cloudinary.com')) {
+    return url;
+  }
+
+  const uploadMarker = '/image/upload/';
+  const markerIndex = url.indexOf(uploadMarker);
+  if (markerIndex === -1) {
+    return url;
+  }
+
+  // logos: max 200px width; section images: max 800px width. Both eco quality, native JPEG.
+  const transformation = type === 'logo'
+    ? 'w_200,c_limit,q_70,f_jpg/'
+    : 'w_800,c_limit,q_70,f_jpg/';
+
+  const insertIndex = markerIndex + uploadMarker.length;
+  return url.slice(0, insertIndex) + transformation + url.slice(insertIndex);
+}
+
 class PdfService {
   /**
    * Generate PDF for a report
@@ -81,16 +105,35 @@ class PdfService {
     if (!reportJson.frontPage.logos) reportJson.frontPage.logos = [];
     if (!reportJson.frontPage.eventDetails) reportJson.frontPage.eventDetails = [];
 
+    // Optimize front page logos
+    if (reportJson.frontPage.logos) {
+      reportJson.frontPage.logos = reportJson.frontPage.logos.map((logoUrl: string) =>
+        optimizeCloudinaryUrl(logoUrl, 'logo')
+      );
+    }
+
     const data = {
       report: reportJson,
-      sections: sections.map((s) => {
-        const sJson = JSON.parse(JSON.stringify(s.toJSON()));
-        sJson.images = ((s as any).images || []).map((img: any) =>
-          JSON.parse(JSON.stringify(img.toJSON ? img.toJSON() : img))
-        );
-        sJson.imageCount = sJson.images.length;
-        return sJson;
-      }),
+      sections: sections
+        .map((s) => {
+          const sJson = JSON.parse(JSON.stringify(s.toJSON()));
+          sJson.images = ((s as any).images || []).map((img: any) => {
+            const imgJson = JSON.parse(JSON.stringify(img.toJSON ? img.toJSON() : img));
+            if (imgJson.url) {
+              imgJson.url = optimizeCloudinaryUrl(imgJson.url, 'section');
+            }
+            return imgJson;
+          });
+          sJson.imageCount = sJson.images.length;
+          return sJson;
+        })
+        .filter((s) => {
+          const hasText = s.content?.paragraphs?.some((p: string) => p.trim().length > 0) ||
+                          s.content?.bullets?.some((b: string) => b.trim().length > 0) ||
+                          (s.content?.richText && s.content.richText.trim().length > 0);
+          const hasImages = s.images && s.images.length > 0;
+          return hasText || hasImages;
+        }),
       budgets: budgets.map((b) => JSON.parse(JSON.stringify(b.toJSON()))),
       budgetTotal: budgets.reduce((sum, b) => sum + b.totalCost, 0),
       generatedAt: new Date().toLocaleDateString('en-IN', {
@@ -121,6 +164,7 @@ class PdfService {
         'SEMINAR': 'seminar.hbs',
         'SUSTAINABLE': 'sustainable.hbs',
         'ENVIRONMENT': 'sustainable.hbs',
+        'AQUA': 'aqua.hbs',
       };
       const templateFile = templateMap[themeType] || 'default.hbs';
       const templatePath = path.join(process.cwd(), 'src', 'templates', templateFile);
@@ -136,29 +180,32 @@ class PdfService {
     // Generate PDF with Puppeteer
     const browserInstance = await getBrowser();
     const page = await browserInstance.newPage();
+    let pdfBuffer: Buffer;
 
-    // Use domcontentloaded for fast load, then wait softly for network idle
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
     try {
-      await page.waitForNetworkIdle({ timeout: 5000 });
-    } catch (e) {
-      console.log('[PDF] Warning: Network did not fully idle in 5s. Proceeding with generation.');
+      // Use domcontentloaded for fast load, then wait softly for network idle
+      await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      try {
+        await page.waitForNetworkIdle({ timeout: 5000 });
+      } catch (e) {
+        console.log('[PDF] Warning: Network did not fully idle in 5s. Proceeding with generation.');
+      }
+
+      pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '15mm', right: '15mm', bottom: '20mm', left: '15mm' },
+        displayHeaderFooter: true,
+        headerTemplate: '<div></div>',
+        footerTemplate: `
+          <div style="width:100%;text-align:center;font-size:9px;color:#888;padding:5px 0;">
+            <span class="pageNumber"></span> / <span class="totalPages"></span>
+          </div>
+        `,
+      });
+    } finally {
+      await page.close();
     }
-
-    const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      margin: { top: '15mm', right: '15mm', bottom: '20mm', left: '15mm' },
-      displayHeaderFooter: true,
-      headerTemplate: '<div></div>',
-      footerTemplate: `
-        <div style="width:100%;text-align:center;font-size:9px;color:#888;padding:5px 0;">
-          <span class="pageNumber"></span> / <span class="totalPages"></span>
-        </div>
-      `,
-    });
-
-    await page.close();
 
     // Save PDF locally to uploads/reports/
     const reportsDir = path.join(process.cwd(), 'uploads', 'reports');

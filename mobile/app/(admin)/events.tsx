@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { eventApi, userApi } from '../../src/services';
 import { Card, Button, Input } from '../../src/components/ui';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../src/theme';
@@ -60,6 +61,7 @@ export default function AdminEventsScreen() {
   const [eventDateError, setEventDateError] = useState('');
   const [eventVenueError, setEventVenueError] = useState('');
   const [eventConvenerError, setEventConvenerError] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Assign Users Modal State
   const [isAssignModalVisible, setIsAssignModalVisible] = useState(false);
@@ -131,6 +133,31 @@ export default function AdminEventsScreen() {
     setEventVenueError('');
     setEventConvenerError('');
     setIsEditModalVisible(true);
+  };
+
+  const handleDeleteEvent = (eventId: string) => {
+    Alert.alert(
+      'Delete Event',
+      'Are you sure you want to delete this event? All associated reports, sub-events, and images will be permanently deleted.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsLoading(true);
+              await eventApi.delete(eventId);
+              loadEvents();
+            } catch (error) {
+              console.error('Failed to delete event:', error);
+              Alert.alert('Error', 'Failed to delete event');
+              setIsLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const handleSaveEvent = async () => {
@@ -431,6 +458,12 @@ export default function AdminEventsScreen() {
                       >
                         <Ionicons name="people-outline" size={18} color={colors.secondary} />
                       </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={[styles.subEventActionBtn, { backgroundColor: colors.error }]} 
+                        onPress={() => handleDeleteEvent(subEvent._id)}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#fff" />
+                      </TouchableOpacity>
                     </View>
                   </View>
                 ))}
@@ -440,6 +473,7 @@ export default function AdminEventsScreen() {
             <View style={styles.actionsRow}>
               <Button variant="outline" size="sm" title="Edit" onPress={() => handleEditEvent(event)} style={styles.actionBtn} />
               <Button variant="outline" size="sm" title="Assign" onPress={() => handleAssignUsers(event._id)} style={styles.actionBtn} />
+              <Button variant="outline" size="sm" title="Delete" onPress={() => handleDeleteEvent(event._id)} style={[styles.actionBtn, { borderColor: colors.error, backgroundColor: colors.error }]} textStyle={{ color: '#fff' }} />
               <Button variant="primary" size="sm" title="+ Sub-event" onPress={() => handleNewEvent(event._id)} style={styles.actionBtn} />
             </View>
           </Card>
@@ -512,17 +546,42 @@ export default function AdminEventsScreen() {
                   error={eventDeptError}
                 />
 
-                <Input
-                  label="Date (YYYY-MM-DD) *"
-                  placeholder="e.g. 2026-05-21"
-                  value={eventDate}
-                  onChangeText={(val) => {
-                    setEventDate(val);
-                    if (eventDateError) setEventDateError('');
-                  }}
-                  icon="calendar-outline"
-                  error={eventDateError}
-                />
+                <View style={{ marginBottom: 16 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '500', color: colors.text, marginBottom: 8 }}>Date (YYYY-MM-DD) *</Text>
+                  <TouchableOpacity 
+                    onPress={() => setShowDatePicker(true)}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: colors.bgInput,
+                      borderWidth: 1,
+                      borderColor: eventDateError ? colors.error : colors.border,
+                      borderRadius: borderRadius.md,
+                      paddingHorizontal: 12,
+                      height: 48,
+                    }}
+                  >
+                    <Ionicons name="calendar-outline" size={20} color={colors.textMuted} style={{ marginRight: 8 }} />
+                    <Text style={{ flex: 1, color: eventDate ? colors.text : colors.textMuted, fontSize: 16 }}>
+                      {eventDate || 'Select a date'}
+                    </Text>
+                  </TouchableOpacity>
+                  {eventDateError ? <Text style={{ color: colors.error, fontSize: 12, marginTop: 4 }}>{eventDateError}</Text> : null}
+                </View>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={eventDate ? new Date(eventDate) : new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={(event, selectedDate) => {
+                      setShowDatePicker(false);
+                      if (selectedDate) {
+                        setEventDate(selectedDate.toISOString().split('T')[0]);
+                        if (eventDateError) setEventDateError('');
+                      }
+                    }}
+                  />
+                )}
 
                 <Input
                   label="Venue *"

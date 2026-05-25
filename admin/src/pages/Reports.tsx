@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { FileText, CheckCircle, XCircle, ExternalLink, Loader2, Search, Eye, X } from 'lucide-react';
+import { FileText, CheckCircle, XCircle, ExternalLink, Loader2, Search, Eye, X, Download } from 'lucide-react';
 import { reportsApi } from '../services/api';
 
 interface Report {
@@ -8,6 +8,7 @@ interface Report {
   createdBy: { _id: string; name: string; email: string; department: string };
   status: string;
   pdfUrl?: string;
+  docxUrl?: string;
   rejectionNote?: string;
   sections?: any[];
   budgets?: any[];
@@ -75,13 +76,68 @@ export function ReportsPage() {
   };
 
   const handleGeneratePdf = async (id: string) => {
-    setActionLoading(id);
+    setActionLoading(id + '-pdf');
     try {
-      const { data } = await reportsApi.generatePdf(id);
-      const url = data.data?.pdfUrl;
-      if (url) window.open(url, '_blank');
+      // First ensure it's generated
+      await reportsApi.generatePdf(id);
+      
+      // Then download via blob
+      const { data } = await reportsApi.downloadPdf(id);
+      const url = window.URL.createObjectURL(new Blob([data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `report-${id}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
       await loadReports();
-    } catch (err: any) { setError(err.response?.data?.message || 'PDF generation failed'); }
+    } catch (err: any) { setError(err.response?.data?.message || 'PDF generation/download failed'); }
+    finally { setActionLoading(''); }
+  };
+
+  const handleGenerateDocx = async (id: string) => {
+    setActionLoading(id + '-docx');
+    try {
+      // First ensure it's generated
+      await reportsApi.generateDocx(id);
+      
+      // Then download via blob
+      const { data } = await reportsApi.downloadDocx(id);
+      const url = window.URL.createObjectURL(new Blob([data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `report-${id}.docx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      await loadReports();
+    } catch (err: any) { setError(err.response?.data?.message || 'DOCX generation/download failed'); }
+    finally { setActionLoading(''); }
+  };
+
+  const handleOpenPdf = async (id: string) => {
+    setActionLoading(id + '-open-pdf');
+    try {
+      const { data } = await reportsApi.downloadPdf(id);
+      const url = window.URL.createObjectURL(new Blob([data], { type: 'application/pdf' }));
+      window.open(url, '_blank');
+      // Note: We don't revoke the URL immediately because the new tab needs to load it.
+      // Ideally, it would be revoked when the tab closes, but browser memory management handles this.
+    } catch (err: any) { setError(err.response?.data?.message || 'Failed to open PDF securely'); }
+    finally { setActionLoading(''); }
+  };
+
+  const handleOpenDocx = async (id: string) => {
+    setActionLoading(id + '-open-docx');
+    try {
+      const { data } = await reportsApi.downloadDocx(id);
+      const url = window.URL.createObjectURL(new Blob([data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+      window.open(url, '_blank');
+    } catch (err: any) { setError(err.response?.data?.message || 'Failed to open DOCX securely'); }
     finally { setActionLoading(''); }
   };
 
@@ -159,6 +215,7 @@ export function ReportsPage() {
                     <div className="flex items-center justify-end gap-1">
                       <button onClick={() => viewDetail(r)} className="p-2 rounded-md hover:bg-accent transition-colors" title="View Details"><Eye className="w-4 h-4 text-muted-foreground" /></button>
                       {r.pdfUrl && <a href={r.pdfUrl} target="_blank" rel="noopener noreferrer" className="p-2 rounded-md hover:bg-accent transition-colors" title="Open PDF"><ExternalLink className="w-4 h-4 text-muted-foreground" /></a>}
+                      {r.docxUrl && <a href={r.docxUrl} target="_blank" rel="noopener noreferrer" className="p-2 rounded-md hover:bg-accent transition-colors" title="Download Word"><FileText className="w-4 h-4 text-orange-600" /></a>}
                       {r.status === 'SUBMITTED' && (
                         <>
                           <button onClick={() => handleApprove(r._id)} disabled={actionLoading === r._id} className="p-2 rounded-md hover:bg-green-100 dark:hover:bg-green-900/20 transition-colors" title="Approve">
@@ -242,21 +299,46 @@ export function ReportsPage() {
             )}
 
             {/* Actions */}
-            <div className="flex items-center gap-3 pt-2 border-t">
-              <button onClick={() => handleGeneratePdf(selectedReport._id)} disabled={actionLoading === selectedReport._id}
-                className="inline-flex items-center gap-2 rounded-md border h-9 px-4 text-sm font-medium hover:bg-accent transition-colors disabled:opacity-50">
-                {actionLoading === selectedReport._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />} Generate PDF
+            <div className="flex items-center gap-3 pt-2 border-t flex-wrap">
+              <button onClick={() => setShowDetail(false)} className="inline-flex items-center gap-2 rounded-md border h-9 px-4 text-sm font-medium hover:bg-accent transition-colors">
+                Back
               </button>
-              {selectedReport.pdfUrl && <a href={selectedReport.pdfUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-md border h-9 px-4 text-sm font-medium hover:bg-accent transition-colors"><FileText className="w-4 h-4" /> View PDF</a>}
+              
+              <button onClick={() => handleGeneratePdf(selectedReport._id)} disabled={!!actionLoading}
+                className="inline-flex items-center gap-2 rounded-md border h-9 px-4 text-sm font-medium hover:bg-accent transition-colors disabled:opacity-50">
+                {actionLoading === selectedReport._id + '-pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />} Generate PDF
+              </button>
+              {selectedReport.pdfUrl && (
+                <button 
+                  onClick={() => handleOpenPdf(selectedReport._id)} 
+                  disabled={!!actionLoading}
+                  className="inline-flex items-center gap-2 rounded-md border h-9 px-4 text-sm font-medium hover:bg-accent transition-colors disabled:opacity-50">
+                  {actionLoading === selectedReport._id + '-open-pdf' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />} View PDF
+                </button>
+              )}
+ 
+              <button onClick={() => handleGenerateDocx(selectedReport._id)} disabled={!!actionLoading}
+                className="inline-flex items-center gap-2 rounded-md border h-9 px-4 text-sm font-medium hover:bg-accent transition-colors disabled:opacity-50">
+                {actionLoading === selectedReport._id + '-docx' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} Generate Word (DOCX)
+              </button>
+              {selectedReport.docxUrl && (
+                <button 
+                  onClick={() => handleOpenDocx(selectedReport._id)} 
+                  disabled={!!actionLoading}
+                  className="inline-flex items-center gap-2 rounded-md border h-9 px-4 text-sm font-medium hover:bg-accent transition-colors disabled:opacity-50">
+                  {actionLoading === selectedReport._id + '-open-docx' ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4 text-orange-600" />} View Word
+                </button>
+              )}
+ 
               <div className="flex-1" />
               {selectedReport.status === 'SUBMITTED' && (
                 <>
-                  <button onClick={() => handleApprove(selectedReport._id)} disabled={actionLoading === selectedReport._id}
+                  <button onClick={() => handleApprove(selectedReport._id)} disabled={!!actionLoading}
                     className="inline-flex items-center gap-2 rounded-md bg-green-600 text-white h-9 px-4 text-sm font-medium hover:bg-green-700 disabled:opacity-50">
-                    <CheckCircle className="w-4 h-4" /> Approve
+                    {actionLoading === selectedReport._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />} Approve
                   </button>
-                  <button onClick={() => { setShowRejectModal(true); setRejectNote(''); }}
-                    className="inline-flex items-center gap-2 rounded-md bg-red-600 text-white h-9 px-4 text-sm font-medium hover:bg-red-700">
+                  <button onClick={() => { setShowRejectModal(true); setRejectNote(''); }} disabled={!!actionLoading}
+                    className="inline-flex items-center gap-2 rounded-md bg-red-600 text-white h-9 px-4 text-sm font-medium hover:bg-red-700 disabled:opacity-50">
                     <XCircle className="w-4 h-4" /> Reject
                   </button>
                 </>

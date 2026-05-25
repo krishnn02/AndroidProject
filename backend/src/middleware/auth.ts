@@ -29,6 +29,12 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
     }
 
     const token = authHeader.split(' ')[1];
+
+    if (!token) {
+      res.status(401).json({ success: false, message: 'Access token required' });
+      return;
+    }
+
     const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
 
     const user = await User.findById(decoded.userId);

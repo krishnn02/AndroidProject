@@ -23,6 +23,7 @@ export enum ThemeType {
   ENVIRONMENT = 'ENVIRONMENT',
   SUSTAINABLE = 'SUSTAINABLE',
   CORPORATE = 'CORPORATE',
+  AQUA = 'AQUA',
 }
 
 export interface IEvent extends Document {
