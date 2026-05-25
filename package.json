@@ -12,8 +12,5 @@
     "admin:dev": "npm run dev --workspace=admin",
     "backend:build": "npm run build --workspace=backend",
     "admin:build": "npm run build --workspace=admin"
-  },
-  "dependencies": {
-    "expo": "^55.0.24"
   }
 }
